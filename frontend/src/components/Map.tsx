@@ -81,27 +81,28 @@ const BASEMAP_STYLES: Record<string, maplibregl.StyleSpecification> = {
   topo: {
     version: 8,
     sources: {
-      'opentopomap': {
+      'esri-topo': {
         type: 'raster',
         tiles: [
-          'https://a.tile.opentopomap.org/{z}/{x}/{y}.png',
-          'https://b.tile.opentopomap.org/{z}/{x}/{y}.png',
-          'https://c.tile.opentopomap.org/{z}/{x}/{y}.png'
+          'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}'
         ],
         tileSize: 256,
-        attribution: '&copy; OpenTopoMap &copy; OpenStreetMap'
+        attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ, TomTom, Intermap, iPC, USGS, FAO, NPS, NRCAN, GeoBase, Kadaster NL, Ordnance Survey, Esri Japan, METI, Esri China (Hong Kong), and the GIS User Community',
+        maxzoom: 19
       }
     },
     layers: [
       {
-        id: 'opentopomap-base',
+        id: 'esri-topo-base',
         type: 'raster',
-        source: 'opentopomap',
+        source: 'esri-topo',
         minzoom: 0,
-        maxzoom: 17,
+        maxzoom: 19,
         paint: {
           'raster-fade-duration': 0,
-          'raster-resampling': 'linear'
+          'raster-resampling': 'linear',
+          'raster-contrast': 0.05,
+          'raster-saturation': 0.05
         }
       }
     ]
@@ -159,8 +160,8 @@ export const Map: React.FC<MapProps> = ({
   const coordsDisplayRef = useRef<HTMLSpanElement>(null);
   const zoomDisplayRef = useRef<HTMLSpanElement>(null);
 
-  // Basemap & Layer Toggles
-  const [basemap, setBasemap] = useState<'standard' | 'topo' | 'dark'>('standard');
+  // Basemap & Layer Toggles (Terrain is the default visual foundation)
+  const [basemap, setBasemap] = useState<'standard' | 'topo' | 'dark'>('topo');
   const [showBoundaries, setShowBoundaries] = useState<boolean>(true);
   const [showStateLabels, setShowStateLabels] = useState<boolean>(true);
   const [showRiskMap, setShowRiskMap] = useState<boolean>(true);
@@ -342,7 +343,7 @@ export const Map: React.FC<MapProps> = ({
           layout: { visibility: showRiskMapRef.current ? 'visible' : 'none' },
           paint: {
             'fill-color': ['get', 'fill'],
-            'fill-opacity': 0.55
+            'fill-opacity': 0.48
           }
         },
         beforeId
@@ -357,7 +358,7 @@ export const Map: React.FC<MapProps> = ({
           paint: {
             'line-color': ['get', 'fill'],
             'line-width': 0.5,
-            'line-opacity': 0.4
+            'line-opacity': 0.35
           }
         },
         beforeId
