@@ -13,6 +13,7 @@ import {
   ScrollView
 } from 'react-native';
 import { UserPlus, Phone, ShieldCheck, Trash2, Edit3, Lock, Users, AlertCircle, BellRing, Smartphone } from 'lucide-react-native';
+import { theme } from '../theme/theme';
 import { EmergencyContact, RelationshipType } from '../types/emergency';
 import { emergencyApi } from '../services/api';
 import { getOrCreateDeviceId } from '../services/storage';
@@ -39,6 +40,7 @@ export const EmergencyContactsScreen: React.FC = () => {
   const [maskData, setMaskData] = useState<boolean>(false);
   const [pushToken, setPushToken] = useState<string | null>(null);
   const [registeringPush, setRegisteringPush] = useState<boolean>(false);
+  const [responderPhone, setResponderPhone] = useState<string>('');
 
   // Modal State
   const [modalVisible, setModalVisible] = useState<boolean>(false);
@@ -74,9 +76,13 @@ export const EmergencyContactsScreen: React.FC = () => {
   };
 
   const handleEnablePushReceiver = async () => {
+    if (!responderPhone.trim()) {
+      Alert.alert('Phone Number Required', 'Please enter your phone number to receive SOS alerts.');
+      return;
+    }
     setRegisteringPush(true);
     try {
-      const token = await registerForPushNotificationsAsync();
+      const token = await registerForPushNotificationsAsync(responderPhone.trim());
       if (token) {
         setPushToken(token);
         Alert.alert(
@@ -240,7 +246,7 @@ export const EmergencyContactsScreen: React.FC = () => {
       <View style={styles.responderCard}>
         <View style={styles.responderCardLeft}>
           <Smartphone size={18} color={pushToken ? '#22c55e' : '#f59e0b'} />
-          <View>
+          <View style={{ flex: 1, marginRight: 8 }}>
             <Text style={styles.responderCardTitle}>
               {pushToken ? 'RESPONDER PUSH ACTIVE' : 'ENABLE RESPONDER PUSH'}
             </Text>
@@ -249,9 +255,26 @@ export const EmergencyContactsScreen: React.FC = () => {
                 ? 'This device is ready to receive real SOS push notifications.'
                 : 'Register device token to receive real push alerts as a responder.'}
             </Text>
+            {!pushToken && (
+              <TextInput
+                style={{ backgroundColor: '#1e293b', color: '#fff', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 6, marginTop: 8, fontSize: 12, borderWidth: 1, borderColor: '#334155' }}
+                placeholder="Enter your phone number..."
+                placeholderTextColor="#64748b"
+                keyboardType="phone-pad"
+                value={responderPhone}
+                onChangeText={setResponderPhone}
+              />
+            )}
           </View>
         </View>
-        {!pushToken && (
+        {pushToken ? (
+          <TouchableOpacity
+            style={[styles.enablePushBtn, { backgroundColor: '#7f1d1d', borderColor: '#450a0a' }]}
+            onPress={() => setPushToken(null)}
+          >
+            <Text style={styles.enablePushBtnText}>Reset</Text>
+          </TouchableOpacity>
+        ) : (
           <TouchableOpacity
             style={styles.enablePushBtn}
             onPress={handleEnablePushReceiver}
@@ -397,7 +420,7 @@ export const EmergencyContactsScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#090d16',
+    backgroundColor: theme.colors.background,
     paddingHorizontal: 16
   },
   header: {
@@ -474,12 +497,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#0f172a',
+    backgroundColor: theme.colors.surface,
     padding: 10,
     borderRadius: 8,
     marginVertical: 10,
     borderWidth: 1,
-    borderColor: '#1e293b'
+    borderColor: theme.colors.border
   },
   privacyLabelRow: {
     flexDirection: 'row',
@@ -494,12 +517,12 @@ const styles = StyleSheet.create({
     paddingBottom: 24
   },
   card: {
-    backgroundColor: '#0f172a',
+    backgroundColor: theme.colors.surface,
     borderRadius: 10,
     padding: 14,
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: '#1e293b'
+    borderColor: theme.colors.border
   },
   cardHeader: {
     flexDirection: 'row',
@@ -620,7 +643,7 @@ const styles = StyleSheet.create({
     padding: 16
   },
   modalContent: {
-    backgroundColor: '#0f172a',
+    backgroundColor: theme.colors.surface,
     borderRadius: 12,
     padding: 18,
     borderWidth: 1,

@@ -23,6 +23,7 @@ import {
   BatteryCharging,
   Info
 } from 'lucide-react-native';
+import { theme } from '../theme/theme';
 import { SOSEvent } from '../types/emergency';
 import { emergencyApi } from '../services/api';
 import { getOrCreateDeviceId, getUserName, getDemoMode, setDemoMode } from '../services/storage';
@@ -365,7 +366,7 @@ export const SOSScreen: React.FC<{ onNavigateToAlerts?: () => void }> = ({ onNav
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#090d16'
+    backgroundColor: theme.colors.background
   },
   contentContainer: {
     padding: 16,
@@ -400,12 +401,12 @@ const styles = StyleSheet.create({
   gpsPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#0f172a',
+    backgroundColor: theme.colors.surface,
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#1e293b',
+    borderColor: theme.colors.border,
     gap: 6,
     marginBottom: 18,
     width: '100%',
@@ -557,12 +558,12 @@ const styles = StyleSheet.create({
   },
   infoCard: {
     width: '100%',
-    backgroundColor: '#0f172a',
+    backgroundColor: theme.colors.surface,
     borderRadius: 10,
     padding: 14,
     marginTop: 16,
     borderWidth: 1,
-    borderColor: '#1e293b'
+    borderColor: theme.colors.border
   },
   infoCardHeader: {
     flexDirection: 'row',
