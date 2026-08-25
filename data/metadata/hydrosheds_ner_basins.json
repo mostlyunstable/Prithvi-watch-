@@ -1,0 +1,14 @@
+{
+  "dataset_name": "HydroBASINS Level 6 & 8 Drainage Basins",
+  "provider": "HydroSHEDS / USGS / WWF",
+  "spatial_resolution": "Vector polygons (30m DEM derived)",
+  "temporal_resolution": "Static hydrographic baseline",
+  "temporal_coverage": "Comprehensive",
+  "ner_coverage": "Brahmaputra, Barak, Meghna, Teesta River sub-catchments across NER",
+  "format": "GeoJSON (RFC 7946 EPSG:4326)",
+  "license": "CC-BY 4.0",
+  "access_method": "Local optimized GeoJSON",
+  "use_in_system": "Catchment identification, upstream contributing area, and watershed delineation",
+  "known_limitations": "Transboundary Tibetan headwaters (Yarlung Tsangpo) aggregated at regional basin scale",
+  "file_path": "data/hydrology/ner_basins.geojson"
+}

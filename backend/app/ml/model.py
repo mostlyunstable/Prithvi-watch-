@@ -26,7 +26,18 @@ class LandslideRiskModel:
             
         df = pd.DataFrame([features])
         # Ensure column order exactly matches the real training dataset
-        cols = ['elevation', 'slope', 'aspect', 'rainfall_7d_mm', 'sar_vv', 'sar_vh']
+        cols = [
+            'elevation',
+            'slope',
+            'aspect',
+            'tri',
+            'relief_5x5',
+            'plan_curvature',
+            'dist_to_infrastructure_km',
+            'rainfall_7d_mm',
+            'sar_vv',
+            'sar_vh'
+        ]
         for c in cols:
             if c not in df.columns or df[c].iloc[0] is None:
                 df[c] = 0.0

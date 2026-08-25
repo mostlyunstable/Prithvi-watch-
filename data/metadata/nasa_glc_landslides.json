@@ -1,0 +1,14 @@
+{
+  "dataset_name": "NASA Global Landslide Catalog (GLC) & COOLR",
+  "provider": "NASA Goddard Space Flight Center (Dalia Kirschbaum et al.)",
+  "spatial_resolution": "Point coordinates with spatial accuracy radius (km)",
+  "temporal_resolution": "Individual event timestamps",
+  "temporal_coverage": "2007\u20132018 (Canonical verified catalog)",
+  "ner_coverage": "483 verified events across all 8 NER states",
+  "format": "GeoJSON & CSV",
+  "license": "NASA Open Data Policy",
+  "access_method": "Local verified GeoJSON + Multi-tier LandslideDataProvider",
+  "use_in_system": "Ground truth training labels, spatial holdout validation, and historical risk context",
+  "known_limitations": "Catalog reporting frequency is higher along populated transport corridors than uninhabited peaks",
+  "file_path": "data/landslides/real_historical.geojson"
+}

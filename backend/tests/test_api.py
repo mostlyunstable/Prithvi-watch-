@@ -16,8 +16,8 @@ def test_model_info():
     data = response.json()
     assert "audited_metrics" in data
     assert "data_sources" in data
-    assert data["audited_metrics"]["clean_concurrent_era_roc_auc"] == 0.7571
-    assert data["feature_count"] == 6
+    assert data["audited_metrics"]["spatial_roc_auc"] >= 0.75
+    assert data["feature_count"] == 10
 
 def test_get_regions():
     response = client.get("/api/regions")
@@ -48,7 +48,7 @@ def test_run_prediction_default():
     assert "explanation" in data
     assert "timeline" in data
     assert "historical_context" in data
-    assert len(data["features"]) == 6
+    assert len(data["features"]) == 10
 
 def test_run_prediction_scenarios():
     for sc, expected_levels in [

@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import type { PredictionResponse } from '../services/api';
+import { fetchFabricEnrich, type FabricEnrichResponse } from '../services/api';
 import { safeToFixed, formatHistoricalDate, formatPercent } from '../utils/geoAnalytics';
 
 interface RiskIntelligencePanelProps {
@@ -17,6 +18,26 @@ export const RiskIntelligencePanel: React.FC<RiskIntelligencePanelProps> = ({
   activeScenario,
   onSelectScenario
 }) => {
+  const [activeTab, setActiveTab] = useState<'model' | 'fabric'>('model');
+  const [fabricData, setFabricData] = useState<FabricEnrichResponse | null>(null);
+  const [isFabricLoading, setIsFabricLoading] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (prediction && prediction.latitude && prediction.longitude) {
+      setIsFabricLoading(true);
+      fetchFabricEnrich(prediction.latitude, prediction.longitude)
+        .then((data) => {
+          setFabricData(data);
+          setIsFabricLoading(false);
+        })
+        .catch(() => {
+          setIsFabricLoading(false);
+        });
+    } else {
+      setFabricData(null);
+    }
+  }, [prediction?.latitude, prediction?.longitude]);
+
   const getRiskColor = (level?: string) => {
     switch (level) {
       case 'CRITICAL':
@@ -58,6 +79,32 @@ export const RiskIntelligencePanel: React.FC<RiskIntelligencePanelProps> = ({
 
   return (
     <aside className="w-full lg:w-[410px] bg-slate-900 border-l border-slate-800 flex flex-col h-full overflow-y-auto text-slate-200">
+      {/* Navigation View Mode Tabs */}
+      <div className="bg-slate-950 px-3.5 pt-3 pb-2 border-b border-slate-800 flex items-center justify-between">
+        <div className="flex space-x-1.5 p-0.5 bg-slate-900 rounded-lg border border-slate-800 w-full">
+          <button
+            onClick={() => setActiveTab('model')}
+            className={`flex-1 py-1 text-[11px] font-bold rounded tracking-wide transition ${
+              activeTab === 'model'
+                ? 'bg-slate-800 text-white shadow-sm border border-slate-700'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            AI Assessment
+          </button>
+          <button
+            onClick={() => setActiveTab('fabric')}
+            className={`flex-1 py-1 text-[11px] font-bold rounded tracking-wide transition flex items-center justify-center space-x-1 ${
+              activeTab === 'fabric'
+                ? 'bg-cyan-900/60 text-cyan-200 shadow-sm border border-cyan-700/60'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <span>Real Data Fabric</span>
+            <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
+          </button>
+        </div>
+      </div>
       {/* Demonstration Scenario Controller */}
       {demoMode && (
         <div className="bg-amber-950/50 border-b border-amber-700/60 p-3.5 space-y-2">
@@ -133,7 +180,7 @@ export const RiskIntelligencePanel: React.FC<RiskIntelligencePanelProps> = ({
               </p>
             </div>
           </div>
-        ) : (
+        ) : activeTab === 'model' ? (
           <>
             {/* 1. Target Location & Assessment Header */}
             <div className={`p-3.5 rounded-lg border ${currentTheme.border} ${currentTheme.bg} space-y-2.5`}>
@@ -368,8 +415,232 @@ export const RiskIntelligencePanel: React.FC<RiskIntelligencePanelProps> = ({
               </div>
             )}
           </>
+        ) : (
+          /* REAL GEOSPATIAL DATA FABRIC VIEW */
+          <div className="space-y-3.5">
+            {isFabricLoading ? (
+              <div className="flex flex-col items-center justify-center py-20 text-center space-y-2.5">
+                <div className="w-7 h-7 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin" />
+                <p className="text-xs font-mono font-medium text-cyan-300">QUERYING DATA FABRIC...</p>
+                <p className="text-[11px] text-slate-500">Hydrology, Land Cover, Multi-Temporal Rain & Sentinel-2</p>
+              </div>
+            ) : !fabricData ? (
+              <div className="text-center py-16 text-slate-400 text-xs font-mono">
+                No Data Fabric observations retrieved for this location.
+              </div>
+            ) : (
+              <>
+                {/* 1. Fabric Health & Coordinates Header */}
+                <div className="p-3 bg-cyan-950/40 border border-cyan-700/60 rounded-lg space-y-2">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <span className="text-[9px] font-mono font-bold text-cyan-400 uppercase tracking-wider block">
+                        Real Data Fabric Node
+                      </span>
+                      <h3 className="text-xs font-bold text-white leading-tight">
+                        {fabricData.infrastructure?.nearest_settlement}, {fabricData.infrastructure?.settlement_state}
+                      </h3>
+                      <span className="text-[10px] font-mono text-cyan-200">
+                        {safeToFixed(fabricData.latitude, 4)}° N, {safeToFixed(fabricData.longitude, 4)}° E
+                      </span>
+                    </div>
+                    <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-cyan-900/80 text-cyan-300 border border-cyan-600/60">
+                      {fabricData.fabric_health?.completeness_pct}% Data Completeness
+                    </span>
+                  </div>
+                </div>
+
+                {/* 2. Topography & Morphology (SRTM 30m) */}
+                <div className="bg-slate-850 p-3 rounded-lg border border-slate-800 space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                      Terrain & Morphology (SRTM 30m)
+                    </span>
+                    <span className="text-[9px] font-mono text-emerald-400">● {fabricData.topography?.status}</span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-1.5 text-center">
+                    <div className="p-1.5 bg-slate-900 rounded border border-slate-800">
+                      <span className="text-[8px] text-slate-400 block uppercase">Elevation</span>
+                      <span className="text-xs font-mono font-bold text-slate-200">{fabricData.topography?.elevation} m</span>
+                    </div>
+                    <div className="p-1.5 bg-slate-900 rounded border border-slate-800">
+                      <span className="text-[8px] text-slate-400 block uppercase">Slope Gradient</span>
+                      <span className="text-xs font-mono font-bold text-slate-200">{fabricData.topography?.slope}°</span>
+                    </div>
+                    <div className="p-1.5 bg-slate-900 rounded border border-slate-800">
+                      <span className="text-[8px] text-slate-400 block uppercase">Aspect</span>
+                      <span className="text-xs font-mono font-bold text-slate-200">{fabricData.topography?.aspect}°</span>
+                    </div>
+                    <div className="p-1.5 bg-slate-900 rounded border border-slate-800">
+                      <span className="text-[8px] text-slate-400 block uppercase">Ruggedness (TRI)</span>
+                      <span className="text-xs font-mono font-bold text-amber-400">{fabricData.topography?.tri} m</span>
+                    </div>
+                    <div className="p-1.5 bg-slate-900 rounded border border-slate-800">
+                      <span className="text-[8px] text-slate-400 block uppercase">Local Relief (5x5)</span>
+                      <span className="text-xs font-mono font-bold text-amber-400">{fabricData.topography?.relief_5x5} m</span>
+                    </div>
+                    <div className="p-1.5 bg-slate-900 rounded border border-slate-800">
+                      <span className="text-[8px] text-slate-400 block uppercase">Plan Curvature</span>
+                      <span className="text-xs font-mono font-bold text-cyan-400">{fabricData.topography?.plan_curvature}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 3. Hydrology & River Systems (HydroSHEDS) */}
+                <div className="bg-slate-850 p-3 rounded-lg border border-slate-800 space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                      Hydrology & Drainage (HydroSHEDS)
+                    </span>
+                    <span className="text-[9px] font-mono text-emerald-400">● {fabricData.hydrology?.status}</span>
+                  </div>
+                  <div className="p-2 bg-slate-900 rounded border border-slate-800 space-y-1 text-xs">
+                    <div className="flex justify-between">
+                      <span className="text-slate-400">Nearest Major River:</span>
+                      <span className="font-bold text-cyan-300">{fabricData.hydrology?.nearest_river}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-400">Distance to River Channel:</span>
+                      <span className="font-mono font-bold text-slate-200">{fabricData.hydrology?.distance_km} km ({fabricData.hydrology?.distance_m} m)</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-400">Hydrologic Basin:</span>
+                      <span className="font-bold text-slate-300">{fabricData.hydrology?.basin}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-400">Mean Annual Discharge:</span>
+                      <span className="font-mono text-cyan-400">{fabricData.hydrology?.mean_discharge_m3s} m³/s</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 4. Multi-Temporal Precipitation & Anomaly (ERA5 / ECMWF) */}
+                <div className="bg-slate-850 p-3 rounded-lg border border-slate-800 space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                      Precipitation Regime (ERA5 / ECMWF)
+                    </span>
+                    <span className="text-[9px] font-mono text-emerald-400">● {fabricData.precipitation?.status}</span>
+                  </div>
+                  <div className="grid grid-cols-4 gap-1 text-center">
+                    <div className="p-1 bg-slate-900 rounded border border-slate-800">
+                      <span className="text-[8px] text-slate-400 block">1h Rain</span>
+                      <span className="text-xs font-mono font-bold text-orange-400">{fabricData.precipitation?.rainfall_1h_mm} mm</span>
+                    </div>
+                    <div className="p-1 bg-slate-900 rounded border border-slate-800">
+                      <span className="text-[8px] text-slate-400 block">6h Rain</span>
+                      <span className="text-xs font-mono font-bold text-orange-400">{fabricData.precipitation?.rainfall_6h_mm} mm</span>
+                    </div>
+                    <div className="p-1 bg-slate-900 rounded border border-slate-800">
+                      <span className="text-[8px] text-slate-400 block">24h Rain</span>
+                      <span className="text-xs font-mono font-bold text-orange-400">{fabricData.precipitation?.rainfall_24h_mm} mm</span>
+                    </div>
+                    <div className="p-1 bg-slate-900 rounded border border-slate-800">
+                      <span className="text-[8px] text-slate-400 block">7d Rain</span>
+                      <span className="text-xs font-mono font-bold text-orange-400">{fabricData.precipitation?.rainfall_7d_mm} mm</span>
+                    </div>
+                  </div>
+                  <div className="p-2 bg-slate-900 rounded border border-slate-800 flex justify-between items-center text-xs">
+                    <span className="text-slate-400">30-Day Total & Climatological Anomaly:</span>
+                    <span className="font-mono font-bold text-amber-300">
+                      {fabricData.precipitation?.rainfall_30d_mm} mm ({fabricData.precipitation?.rainfall_anomaly_pct > 0 ? '+' : ''}{fabricData.precipitation?.rainfall_anomaly_pct}%)
+                    </span>
+                  </div>
+                </div>
+
+                {/* 5. Satellite Multi-Modal (Sentinel-1 SAR & Sentinel-2 Optical) */}
+                <div className="bg-slate-850 p-3 rounded-lg border border-slate-800 space-y-2">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                    Copernicus Satellite Multi-Modal
+                  </span>
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div className="p-2 bg-slate-900 rounded border border-slate-800 space-y-1">
+                      <div className="flex justify-between items-center">
+                        <span className="font-bold text-cyan-300">Sentinel-1 SAR</span>
+                        <span className="text-[8px] font-mono text-emerald-400">● {fabricData.satellite_sar?.status}</span>
+                      </div>
+                      <div className="flex justify-between text-slate-400">
+                        <span>VV Backscatter:</span>
+                        <span className="font-mono text-slate-200 font-bold">{fabricData.satellite_sar?.sar_vv}</span>
+                      </div>
+                      <div className="flex justify-between text-slate-400">
+                        <span>VH Backscatter:</span>
+                        <span className="font-mono text-slate-200 font-bold">{fabricData.satellite_sar?.sar_vh}</span>
+                      </div>
+                      <div className="flex justify-between text-slate-400">
+                        <span>VV/VH Ratio:</span>
+                        <span className="font-mono text-cyan-400 font-bold">{fabricData.satellite_sar?.sar_ratio}</span>
+                      </div>
+                    </div>
+
+                    <div className="p-2 bg-slate-900 rounded border border-slate-800 space-y-1">
+                      <div className="flex justify-between items-center">
+                        <span className="font-bold text-emerald-300">Sentinel-2 Optical</span>
+                        <span className="text-[8px] font-mono text-emerald-400">● {fabricData.satellite_optical?.status}</span>
+                      </div>
+                      <div className="flex justify-between text-slate-400">
+                        <span>NDVI Index:</span>
+                        <span className="font-mono text-emerald-400 font-bold">{fabricData.satellite_optical?.ndvi}</span>
+                      </div>
+                      <div className="flex justify-between text-slate-400">
+                        <span>Vegetation:</span>
+                        <span className="text-[10px] font-bold text-slate-200">{fabricData.satellite_optical?.vegetation_health}</span>
+                      </div>
+                      <div className="flex justify-between text-slate-400">
+                        <span>Cloud Cover:</span>
+                        <span className="font-mono text-slate-300">{fabricData.satellite_optical?.cloud_cover_pct}%</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 6. Land Cover & Infrastructure Exposure */}
+                <div className="bg-slate-850 p-3 rounded-lg border border-slate-800 space-y-2">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                    Surface Classification & Exposure
+                  </span>
+                  <div className="p-2 bg-slate-900 rounded border border-slate-800 space-y-1 text-xs">
+                    <div className="flex justify-between">
+                      <span className="text-slate-400">ESA WorldCover 10m Class:</span>
+                      <span className="font-bold text-emerald-400">{fabricData.land_cover?.class_label} (Code {fabricData.land_cover?.class_code})</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-400">Nearest National Highway:</span>
+                      <span className="font-bold text-amber-300">{fabricData.infrastructure?.nearest_highway}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-400">Distance to Transport Corridor:</span>
+                      <span className="font-mono font-bold text-slate-200">{fabricData.infrastructure?.distance_to_highway_km} km</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 7. Historical Hazards (Landslides & Floods) */}
+                <div className="bg-slate-850 p-3 rounded-lg border border-slate-800 space-y-2">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                    Historical Disaster Hazards
+                  </span>
+                  <div className="p-2 bg-slate-900 rounded border border-slate-800 space-y-1 text-xs">
+                    <div className="flex justify-between">
+                      <span className="text-slate-400">NASA GLC Landslides (&le;25 km):</span>
+                      <span className="font-mono font-bold text-orange-400">{fabricData.historical_hazards?.nearest_landslide?.events_within_25km} recorded events</span>
+                    </div>
+                    {fabricData.historical_hazards?.nearest_flood?.location && (
+                      <div className="flex justify-between">
+                        <span className="text-slate-400">Nearest CWC/ASDMA Flood Reach:</span>
+                        <span className="font-bold text-cyan-300">
+                          {fabricData.historical_hazards?.nearest_flood?.location} ({fabricData.historical_hazards?.nearest_flood?.distance_km} km)
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
         )}
       </div>
     </aside>
   );
 };
+

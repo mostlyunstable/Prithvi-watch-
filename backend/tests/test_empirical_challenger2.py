@@ -44,6 +44,8 @@ class TestEmpiricalMLAndSHAP(unittest.TestCase):
         # Warm up explainer to ensure expected_value is fully initialized
         dummy = pd.DataFrame([{
             'elevation': 500.0, 'slope': 15.0, 'aspect': 90.0,
+            'tri': 5.0, 'relief_5x5': 30.0, 'plan_curvature': 0.0,
+            'dist_to_infrastructure_km': 10.0,
             'rainfall_7d_mm': 50.0, 'sar_vv': 0.3, 'sar_vh': 0.05
         }])
         risk_model.explainer.shap_values(dummy)
@@ -62,7 +64,11 @@ class TestEmpiricalMLAndSHAP(unittest.TestCase):
         ner_lat_range = (25.0, 28.5)
         ner_lon_range = (88.5, 95.5)
 
-        cols = ['elevation', 'slope', 'aspect', 'rainfall_7d_mm', 'sar_vv', 'sar_vh']
+        cols = [
+            'elevation', 'slope', 'aspect', 'tri', 'relief_5x5',
+            'plan_curvature', 'dist_to_infrastructure_km',
+            'rainfall_7d_mm', 'sar_vv', 'sar_vh'
+        ]
         max_abs_diff = 0.0
         results = []
 
@@ -122,14 +128,18 @@ class TestEmpiricalMLAndSHAP(unittest.TestCase):
         Verify mathematical SHAP log-odds additivity under extreme synthetic feature boundaries.
         """
         test_cases = [
-            {"elevation": 0.0, "slope": 0.0, "aspect": 0.0, "rainfall_7d_mm": 0.0, "sar_vv": 0.01, "sar_vh": 0.005},
-            {"elevation": 4500.0, "slope": 75.0, "aspect": 359.0, "rainfall_7d_mm": 800.0, "sar_vv": 2.5, "sar_vh": 0.8},
-            {"elevation": 1200.0, "slope": 35.0, "aspect": 180.0, "rainfall_7d_mm": 250.0, "sar_vv": 0.8, "sar_vh": 0.15},
-            {"elevation": 200.0, "slope": 5.0, "aspect": 90.0, "rainfall_7d_mm": 10.0, "sar_vv": 0.2, "sar_vh": 0.04},
-            {"elevation": 3000.0, "slope": 45.0, "aspect": 270.0, "rainfall_7d_mm": 500.0, "sar_vv": 1.2, "sar_vh": 0.3},
+            {"elevation": 0.0, "slope": 0.0, "aspect": 0.0, "tri": 0.0, "relief_5x5": 0.0, "plan_curvature": 0.0, "dist_to_infrastructure_km": 10.0, "rainfall_7d_mm": 0.0, "sar_vv": 0.01, "sar_vh": 0.005},
+            {"elevation": 4500.0, "slope": 75.0, "aspect": 359.0, "tri": 45.0, "relief_5x5": 250.0, "plan_curvature": -1.5, "dist_to_infrastructure_km": 1.0, "rainfall_7d_mm": 800.0, "sar_vv": 2.5, "sar_vh": 0.8},
+            {"elevation": 1200.0, "slope": 35.0, "aspect": 180.0, "tri": 20.0, "relief_5x5": 110.0, "plan_curvature": 0.2, "dist_to_infrastructure_km": 5.0, "rainfall_7d_mm": 250.0, "sar_vv": 0.8, "sar_vh": 0.15},
+            {"elevation": 200.0, "slope": 5.0, "aspect": 90.0, "tri": 2.0, "relief_5x5": 15.0, "plan_curvature": 0.0, "dist_to_infrastructure_km": 25.0, "rainfall_7d_mm": 10.0, "sar_vv": 0.2, "sar_vh": 0.04},
+            {"elevation": 3000.0, "slope": 45.0, "aspect": 270.0, "tri": 25.0, "relief_5x5": 160.0, "plan_curvature": -0.8, "dist_to_infrastructure_km": 2.0, "rainfall_7d_mm": 500.0, "sar_vv": 1.2, "sar_vh": 0.3},
         ]
 
-        cols = ['elevation', 'slope', 'aspect', 'rainfall_7d_mm', 'sar_vv', 'sar_vh']
+        cols = [
+            'elevation', 'slope', 'aspect', 'tri', 'relief_5x5',
+            'plan_curvature', 'dist_to_infrastructure_km',
+            'rainfall_7d_mm', 'sar_vv', 'sar_vh'
+        ]
 
         for idx, feat in enumerate(test_cases):
             df = pd.DataFrame([feat])[cols]
@@ -193,7 +203,7 @@ class TestDemoScenarios(unittest.TestCase):
                 self.assertEqual(data["risk_level"], sc_expect["expected_risk"])
                 self.assertEqual(data["timeline"], sc_expect["expected_timeline"])
                 self.assertTrue(0.0 <= data["landslide_probability"] <= 1.0)
-                self.assertEqual(len(data["explanation"]), 6)
+                self.assertEqual(len(data["explanation"]), 8)
                 self.assertEqual(data["data_quality"]["dem"], "AVAILABLE")
                 self.assertEqual(data["data_quality"]["weather"], "AVAILABLE")
                 self.assertEqual(data["data_quality"]["satellite"], "AVAILABLE")

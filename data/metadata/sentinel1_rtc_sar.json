@@ -1,0 +1,14 @@
+{
+  "dataset_name": "Sentinel-1 Synthetic Aperture Radar (SAR) GRD Radiometrically Terrain Corrected (RTC)",
+  "provider": "European Space Agency (ESA) Copernicus / Microsoft Planetary Computer",
+  "spatial_resolution": "10 meters (C-band SAR, 5.405 GHz)",
+  "temporal_resolution": "6\u201312 day constellation revisit",
+  "temporal_coverage": "October 2014\u2013present",
+  "ner_coverage": "Full NER coverage across ascending/descending relative orbits",
+  "format": "Cloud-Optimized GeoTIFF (COG) via SpatioTemporal Asset Catalog (STAC)",
+  "license": "Copernicus Open Access Policy",
+  "access_method": "Microsoft Planetary Computer STAC API + Windowed COG reads",
+  "use_in_system": "All-weather surface roughness, soil moisture backscatter (VV/VH), and flood inundation change",
+  "known_limitations": "SAR shadow and layover along extreme northern facing Himalayan mountain scarps",
+  "file_path": "dynamic: Planetary Computer STAC"
+}

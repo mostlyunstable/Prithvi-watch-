@@ -1,34 +1,144 @@
 {
-  "model_version": "v3.0-expanded-spatial",
+  "model_version": "v4.2-multimodal-morphology-enhanced",
+  "dataset_version": "v4.2-morphology-infrastructure",
   "features": [
     "elevation",
     "slope",
     "aspect",
+    "tri",
+    "relief_5x5",
+    "plan_curvature",
+    "dist_to_infrastructure_km",
     "rainfall_7d_mm",
     "sar_vv",
     "sar_vh"
   ],
-  "training_samples": 262,
+  "training_samples": 324,
   "positive_samples": 162,
-  "background_samples": 100,
-  "geographic_coverage": "Meghalaya, Assam, Sikkim, Arunachal Pradesh borders",
-  "dataset_source": "NASA GLC Github Mirror + SRTM",
-  "validation_method": "Spatial GroupKFold (1-degree grid)",
-  "training_timestamp": "2026-08-23T13:58:30.009493Z",
-  "metrics": {
-    "precision": 0.8168478260869566,
-    "recall": 0.8276190476190477,
-    "f1_score": 0.8187669376693766,
-    "roc_auc": 0.8931089274150038,
+  "background_samples": 162,
+  "temporal_coverage": "2007\u20132018",
+  "validation_methods": [
+    "Spatial GroupKFold (1-degree holdout)",
+    "Temporal Holdout (<= 2013 vs >= 2014)"
+  ],
+  "training_timestamp": "2026-08-25T09:10:49.561613+00:00",
+  "random_seed": 42,
+  "spatial_holdout_metrics": {
+    "roc_auc": 0.8069378306878306,
+    "pr_auc": 0.7639361162580647,
+    "precision": 0.7136409865242817,
+    "recall": 0.6492063492063491,
+    "f1_score": 0.6571366522885215,
+    "brier_score": 0.22297058999538422,
     "confusion_matrix": [
       [
-        29,
-        14
+        126,
+        36
       ],
       [
-        7,
-        21
+        59,
+        103
       ]
     ]
+  },
+  "temporal_holdout_metrics": {
+    "train_period": "<= 2013",
+    "test_period": "2014\u20132018",
+    "roc_auc": 0.8056666666666666,
+    "pr_auc": 0.789140657690022,
+    "precision": 0.7341772151898734,
+    "recall": 0.7733333333333333,
+    "f1_score": 0.7532467532467533,
+    "brier_score": 0.1901983618736267,
+    "confusion_matrix": [
+      [
+        59,
+        21
+      ],
+      [
+        17,
+        58
+      ]
+    ]
+  },
+  "feature_ablations": {
+    "1. Baseline (Elevation, Slope, Aspect)": {
+      "features": [
+        "elevation",
+        "slope",
+        "aspect"
+      ],
+      "roc_auc": 0.5881729497354496,
+      "f1": 0.3377229404195469,
+      "brier_score": 0.42335017522176105
+    },
+    "2. Morphology (TRI, Relief, Plan Curvature)": {
+      "features": [
+        "elevation",
+        "slope",
+        "aspect",
+        "tri",
+        "relief_5x5",
+        "plan_curvature"
+      ],
+      "roc_auc": 0.6221957671957671,
+      "f1": 0.4025002517514709,
+      "brier_score": 0.40273861090342206
+    },
+    "3. Morphology + Rain (7d)": {
+      "features": [
+        "elevation",
+        "slope",
+        "aspect",
+        "tri",
+        "relief_5x5",
+        "plan_curvature",
+        "rainfall_7d_mm"
+      ],
+      "roc_auc": 0.6351984126984128,
+      "f1": 0.41489487492147953,
+      "brier_score": 0.40111849705378216
+    },
+    "4. Full Enhanced (10 Features)": {
+      "features": [
+        "elevation",
+        "slope",
+        "aspect",
+        "tri",
+        "relief_5x5",
+        "plan_curvature",
+        "dist_to_infrastructure_km",
+        "rainfall_7d_mm",
+        "sar_vv",
+        "sar_vh"
+      ],
+      "roc_auc": 0.8069378306878306,
+      "f1": 0.6571366522885215,
+      "brier_score": 0.22297058999538422
+    }
+  },
+  "subgroup_performance": {
+    "spatial_groups": {
+      "25_91": {
+        "samples": 62,
+        "roc_auc": 1.0,
+        "f1": 1.0
+      },
+      "26_91": {
+        "samples": 91,
+        "roc_auc": 1.0,
+        "f1": 1.0
+      },
+      "27_88": {
+        "samples": 132,
+        "roc_auc": 1.0,
+        "f1": 1.0
+      },
+      "27_92": {
+        "samples": 38,
+        "roc_auc": 1.0,
+        "f1": 1.0
+      }
+    }
   }
 }

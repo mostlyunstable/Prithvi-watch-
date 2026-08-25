@@ -324,6 +324,10 @@ def generate_risk_velocity_geojson(
                         'elevation': elev,
                         'slope': slope,
                         'aspect': aspect,
+                        'tri': round(float(slope * 0.4), 2),
+                        'relief_5x5': round(float(slope * 2.5), 1),
+                        'plan_curvature': 0.0,
+                        'dist_to_infrastructure_km': 15.0,
                         'rainfall_7d_mm': rain,
                         'sar_vv': sar,
                         'sar_vh': 0.08
@@ -335,8 +339,9 @@ def generate_risk_velocity_geojson(
     if not points_to_predict:
         return {"type": "FeatureCollection", "features": []}
 
-    # Vectorized batch evaluation
-    df_batch = pd.DataFrame(points_to_predict)[['elevation', 'slope', 'aspect', 'rainfall_7d_mm', 'sar_vv', 'sar_vh']]
+    # Vectorized batch evaluation across all 10 features
+    cols = ['elevation', 'slope', 'aspect', 'tri', 'relief_5x5', 'plan_curvature', 'dist_to_infrastructure_km', 'rainfall_7d_mm', 'sar_vv', 'sar_vh']
+    df_batch = pd.DataFrame(points_to_predict)[cols]
     probs = model.predict_proba(df_batch)[:, 1]
 
     now_utc = datetime.now(timezone.utc)

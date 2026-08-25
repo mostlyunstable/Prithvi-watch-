@@ -1,0 +1,14 @@
+{
+  "dataset_name": "NASA Global Precipitation Measurement (GPM) IMERG Early/Late/Final",
+  "provider": "NASA Goddard Space Flight Center / JAXA",
+  "spatial_resolution": "0.1\u00b0 x 0.1\u00b0 (~10 km)",
+  "temporal_resolution": "30-minute intervals",
+  "temporal_coverage": "2000\u2013present (IMERG V07)",
+  "ner_coverage": "Continuous 100% NER coverage",
+  "format": "HDF5 / GeoTIFF / REST API",
+  "license": "NASA Open Data Policy",
+  "access_method": "NASA Earthdata / Giovanni / Open-Meteo GPM pipeline",
+  "use_in_system": "High-frequency cloudburst monitoring and satellite precipitation validation",
+  "known_limitations": "Microwave retrieval over steep snow/ice terrain in North Sikkim has higher uncertainty",
+  "file_path": "dynamic: NASA Earthdata"
+}

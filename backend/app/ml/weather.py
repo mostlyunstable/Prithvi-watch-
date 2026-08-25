@@ -76,3 +76,39 @@ def get_live_rainfall(lat: float, lon: float) -> Dict[str, Any]:
             "source": "Open-Meteo ERA5/ECMWF Live",
             "error": str(e)
         }
+
+
+def get_historical_rainfall(lat: float, lon: float, date_str: str) -> float:
+    """
+    Fetches 7-day antecedent cumulative precipitation strictly prior to the reference timestamp
+    using the Open-Meteo ERA5 historical reanalysis API.
+    
+    Temporal interval: [T - 7 days, T - 1 day]
+    """
+    try:
+        import pandas as pd
+        from datetime import timedelta
+        
+        dt = pd.to_datetime(date_str)
+        if dt.tzinfo is not None:
+            dt = dt.tz_convert(None)
+            
+        end_date = (dt - timedelta(days=1)).strftime("%Y-%m-%d")
+        start_date = (dt - timedelta(days=7)).strftime("%Y-%m-%d")
+        
+        url = (
+            f"https://archive-api.open-meteo.com/v1/era5?"
+            f"latitude={lat}&longitude={lon}&start_date={start_date}&end_date={end_date}"
+            f"&daily=precipitation_sum&timezone=UTC"
+        )
+        resp = _session.get(url, timeout=(4.0, 8.0))
+        if resp.status_code == 200:
+            data = resp.json()
+            precip = data.get("daily", {}).get("precipitation_sum", [])
+            valid = [p for p in precip if p is not None]
+            if valid:
+                return round(float(sum(valid)), 1)
+        return 20.0
+    except Exception:
+        return 20.0
+

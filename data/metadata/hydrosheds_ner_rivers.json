@@ -1,0 +1,14 @@
+{
+  "dataset_name": "HydroSHEDS / HydroRIVERS & OpenStreetMap NER Waterways",
+  "provider": "World Wildlife Fund (WWF) / HydroSHEDS / OpenStreetMap",
+  "spatial_resolution": "Vector lines (~15m\u201330m precision)",
+  "temporal_resolution": "Static hydrographic baseline (v1.0)",
+  "temporal_coverage": "Comprehensive",
+  "ner_coverage": "Full North Eastern Region (Brahmaputra, Barak, Teesta, Subansiri, Manas, Umngot basins)",
+  "format": "GeoJSON (RFC 7946 EPSG:4326)",
+  "license": "Creative Commons Attribution 4.0 (CC-BY 4.0) / ODbL",
+  "access_method": "Local optimized GeoJSON with spatial indexing",
+  "use_in_system": "River proximity, stream network visualization, drainage density, and flood hazard modeling",
+  "known_limitations": "Braided channels in the Brahmaputra floodplain shift seasonally during peak monsoon",
+  "file_path": "data/rivers/ner_rivers.geojson"
+}

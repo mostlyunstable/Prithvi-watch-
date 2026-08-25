@@ -348,5 +348,137 @@ export const fetchPlaces = async (): Promise<any> => {
   return response.json();
 };
 
+export interface FabricEnrichResponse {
+  latitude: number;
+  longitude: number;
+  timestamp: string;
+  fabric_version: string;
+  topography: {
+    elevation: number;
+    slope: number;
+    aspect: number;
+    tri: number;
+    relief_5x5: number;
+    plan_curvature: number;
+    status: string;
+    provider: string;
+  };
+  hydrology: {
+    nearest_river: string;
+    distance_km: number;
+    distance_m: number;
+    basin: string;
+    strahler_order: number;
+    mean_discharge_m3s: number;
+    status: string;
+    provider: string;
+  };
+  precipitation: {
+    rainfall_1h_mm: number;
+    rainfall_3h_mm: number;
+    rainfall_6h_mm: number;
+    rainfall_24h_mm: number;
+    rainfall_72h_mm: number;
+    rainfall_7d_mm: number;
+    rainfall_30d_mm: number;
+    rainfall_anomaly_pct: number;
+    status: string;
+    provider: string;
+    observation_time?: string;
+  };
+  satellite_sar: {
+    sar_vv: number;
+    sar_vh: number;
+    sar_ratio: number;
+    acquisition_date: string | null;
+    orbit_pass: string;
+    status: string;
+    provider: string;
+  };
+  satellite_optical: {
+    ndvi: number;
+    vegetation_health: string;
+    cloud_cover_pct: number;
+    acquisition_date: string | null;
+    status: string;
+    provider: string;
+  };
+  land_cover: {
+    class_code: number;
+    class_label: string;
+    description?: string;
+    status: string;
+    provider: string;
+  };
+  infrastructure: {
+    nearest_settlement: string;
+    settlement_state: string;
+    distance_to_settlement_km: number;
+    nearest_highway: string;
+    distance_to_highway_km: number;
+    distance_to_infrastructure_km: number;
+    status: string;
+    provider: string;
+  };
+  historical_hazards: {
+    nearest_landslide: {
+      distance_km: number | null;
+      date: string | null;
+      location: string | null;
+      events_within_25km: number;
+    };
+    nearest_flood: {
+      distance_km: number | null;
+      location: string | null;
+      year: number | null;
+      severity: string | null;
+    };
+    status: string;
+    provider: string;
+  };
+  fabric_health: {
+    available_providers: number;
+    total_providers: number;
+    completeness_pct: number;
+    providers: Record<string, any>;
+  };
+}
+
+export const fetchFabricEnrich = async (lat: number, lon: number): Promise<FabricEnrichResponse> => {
+  const response = await fetch(`${API_BASE_URL}/fabric/enrich?lat=${lat}&lon=${lon}`);
+  if (!response.ok) throw new Error(`Fabric enrich fetch failed: ${response.statusText}`);
+  return response.json();
+};
+
+export const fetchFabricCatalog = async (): Promise<any> => {
+  const response = await fetch(`${API_BASE_URL}/fabric/catalog`);
+  if (!response.ok) throw new Error(`Fabric catalog fetch failed: ${response.statusText}`);
+  return response.json();
+};
+
+export const fetchFabricRivers = async (): Promise<any> => {
+  const response = await fetch(`${API_BASE_URL}/fabric/layers/rivers`);
+  if (!response.ok) throw new Error(`Fabric rivers fetch failed: ${response.statusText}`);
+  return response.json();
+};
+
+export const fetchFabricBasins = async (): Promise<any> => {
+  const response = await fetch(`${API_BASE_URL}/fabric/layers/basins`);
+  if (!response.ok) throw new Error(`Fabric basins fetch failed: ${response.statusText}`);
+  return response.json();
+};
+
+export const fetchFabricFloods = async (): Promise<any> => {
+  const response = await fetch(`${API_BASE_URL}/fabric/layers/floods`);
+  if (!response.ok) throw new Error(`Fabric floods fetch failed: ${response.statusText}`);
+  return response.json();
+};
+
+export const fetchFabricRoads = async (): Promise<any> => {
+  const response = await fetch(`${API_BASE_URL}/fabric/layers/roads`);
+  if (!response.ok) throw new Error(`Fabric roads fetch failed: ${response.statusText}`);
+  return response.json();
+};
+
 
 

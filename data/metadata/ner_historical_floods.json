@@ -1,0 +1,14 @@
+{
+  "dataset_name": "Central Water Commission (CWC) & Assam SDMA Historical Major Flood Events",
+  "provider": "Central Water Commission (CWC) / Assam State Disaster Management Authority (ASDMA) / JRC",
+  "spatial_resolution": "District and river reach level polygons/points",
+  "temporal_resolution": "Annual flood seasons (1998\u20132024)",
+  "temporal_coverage": "1998\u20132024",
+  "ner_coverage": "Brahmaputra Valley (Kaziranga, Majuli, Barpeta, Dhemaji) & Barak Basin (Silchar, Cachar)",
+  "format": "GeoJSON (RFC 7946 EPSG:4326)",
+  "license": "Open Government Data (OGD India) / CC-BY 4.0",
+  "access_method": "Local verified GeoJSON",
+  "use_in_system": "Historical flood hazard validation, seasonal inundation recurrence, and multi-hazard assessment",
+  "known_limitations": "Embankment breach locations documented primarily in Brahmaputra and Barak river basins",
+  "file_path": "data/floods/ner_historical_floods.geojson"
+}

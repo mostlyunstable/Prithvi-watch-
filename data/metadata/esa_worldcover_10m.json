@@ -1,0 +1,14 @@
+{
+  "dataset_name": "ESA WorldCover 10m Global Land Cover",
+  "provider": "European Space Agency (ESA) / VITO Remote Sensing",
+  "spatial_resolution": "10 meters",
+  "temporal_resolution": "Annual update (2020/2021/2022)",
+  "temporal_coverage": "2020\u20132023",
+  "ner_coverage": "Full NER coverage",
+  "format": "Cloud-Optimized GeoTIFF / Vector Classification",
+  "license": "Creative Commons Attribution 4.0 International (CC BY 4.0)",
+  "access_method": "ESA WorldCover STAC / Local Spatial Classifier",
+  "use_in_system": "Surface cover classification (Tree cover, Shrubland, Cropland, Urban/Built-up, Bare soil, Water)",
+  "known_limitations": "Shifting jhum (slash-and-burn) agriculture cycles in hill districts alter local canopy annually",
+  "file_path": "data/landcover/ner_landcover.json"
+}

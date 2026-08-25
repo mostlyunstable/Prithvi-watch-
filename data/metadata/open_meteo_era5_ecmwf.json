@@ -1,0 +1,14 @@
+{
+  "dataset_name": "Copernicus ERA5 Reanalysis & ECMWF Integrated Forecasting System (IFS)",
+  "provider": "ECMWF / Open-Meteo GmbH",
+  "spatial_resolution": "0.1\u00b0 (~10 km) gridded",
+  "temporal_resolution": "Hourly to 24-hourly, updated 4x daily",
+  "temporal_coverage": "1940\u2013present (historical) + 16-day operational forecast",
+  "ner_coverage": "Continuous 100% NER coverage",
+  "format": "REST JSON API (HTTPS)",
+  "license": "Copernicus Open Access / CC-BY 4.0",
+  "access_method": "Dynamic REST API queries with in-memory TTL caching",
+  "use_in_system": "Multi-temporal antecedent rainfall (1h, 3h, 6h, 24h, 72h, 7d, 30d) and climatological anomaly",
+  "known_limitations": "Deep Himalayan valleys experience micro-orographic cloudbursts sub-grid to 10km cells",
+  "file_path": "dynamic: Open-Meteo API"
+}

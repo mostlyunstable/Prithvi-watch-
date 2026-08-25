@@ -1,0 +1,14 @@
+{
+  "dataset_name": "Sentinel-2 Multi-Spectral Instrument (MSI) Level-2A Bottom-Of-Atmosphere Reflectance",
+  "provider": "ESA Copernicus / Microsoft Planetary Computer",
+  "spatial_resolution": "10 meters (B4 Red, B8 NIR) / 20 meters",
+  "temporal_resolution": "5-day constellation revisit",
+  "temporal_coverage": "June 2015\u2013present",
+  "ner_coverage": "Full NER coverage",
+  "format": "COG via STAC",
+  "license": "Copernicus Open Access Policy",
+  "access_method": "Planetary Computer STAC API + Scene Classification Layer (SCL) cloud filtering",
+  "use_in_system": "Normalized Difference Vegetation Index (NDVI), vegetation stress, and bare soil scarp tracking",
+  "known_limitations": "Heavy monsoon cloud cover (June\u2013August) restricts valid optical scenes to cloud-free gaps",
+  "file_path": "dynamic: Planetary Computer STAC"
+}

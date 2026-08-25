@@ -1,0 +1,14 @@
+{
+  "dataset_name": "Survey of India / OpenStreetMap NER Highways, Roads & Settlement Gazetteer",
+  "provider": "Survey of India / OpenStreetMap Contributors / Geofabrik",
+  "spatial_resolution": "Sub-10m vector precision",
+  "temporal_resolution": "Quarterly OSM update",
+  "temporal_coverage": "Current",
+  "ner_coverage": "All 8 NER states (National Highways NH-10, NH-27, NH-40, NH-102, district roads, 120+ towns)",
+  "format": "GeoJSON (RFC 7946 EPSG:4326)",
+  "license": "Open Database License (ODbL) / Open Government Data",
+  "access_method": "Local spatial KDTree and GeoJSON",
+  "use_in_system": "Road cut proximity, settlement exposure, evacuation corridor accessibility",
+  "known_limitations": "Remote unpaved village tracks in interior hills may have lower mapping completeness",
+  "file_path": "data/infrastructure/ner_places.geojson"
+}

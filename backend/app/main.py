@@ -146,18 +146,30 @@ def get_model_info():
     """Returns validated model metadata, feature schemas, and spatial validation metrics."""
     metrics_store["requests_total"] += 1
     return {
-        "model_version": "v4.0-multimodal-real",
+        "model_version": "v4.2-multimodal-morphology-enhanced",
         "algorithm": "XGBoost Classifier",
-        "feature_count": 6,
-        "features": ["elevation", "slope", "aspect", "rainfall_7d_mm", "sar_vv", "sar_vh"],
+        "feature_count": 10,
+        "features": [
+            "elevation",
+            "slope",
+            "aspect",
+            "tri",
+            "relief_5x5",
+            "plan_curvature",
+            "dist_to_infrastructure_km",
+            "rainfall_7d_mm",
+            "sar_vv",
+            "sar_vh"
+        ],
         "spatial_validation": "Spatial GroupKFold (1-degree holdout)",
         "audited_metrics": {
-            "clean_concurrent_era_roc_auc": 0.7571,
-            "terrain_only_baseline_roc_auc": 0.5753,
-            "full_spatial_roc_auc": 0.8931,
-            "spatial_precision": 0.8168,
-            "spatial_recall": 0.8276,
-            "spatial_f1": 0.8188
+            "spatial_roc_auc": 0.8069,
+            "temporal_roc_auc": 0.8057,
+            "spatial_f1": 0.6571,
+            "temporal_f1": 0.7532,
+            "temporal_recall": 0.7733,
+            "spatial_brier": 0.2230,
+            "temporal_brier": 0.1902
         },
         "data_sources": {
             "dem": {"name": "NASA/USGS SRTM 30m Global", "status": "operational", "type": "Local Raster"},
@@ -315,13 +327,19 @@ def handle_demo_scenario(lat: float, lon: float, scenario: str):
             "elevation": 820.0,
             "slope": 8.5,
             "aspect": 142.0,
+            "tri": 4.2,
+            "relief_5x5": 24.0,
+            "plan_curvature": 0.05,
+            "dist_to_infrastructure_km": 42.5,
             "rainfall_7d_mm": 18.4,
             "sar_vv": 0.224,
             "sar_vh": 0.048
         }
         exp = [
+            {"feature": "dist_to_infrastructure_km", "impact": "HIGH", "value": -1.420, "direction": "decreases"},
             {"feature": "rainfall_7d_mm", "impact": "LOW", "value": -0.842, "direction": "decreases"},
             {"feature": "slope", "impact": "LOW", "value": -0.621, "direction": "decreases"},
+            {"feature": "tri", "impact": "LOW", "value": -0.410, "direction": "decreases"},
             {"feature": "sar_vv", "impact": "LOW", "value": -0.315, "direction": "decreases"},
             {"feature": "elevation", "impact": "LOW", "value": -0.142, "direction": "decreases"},
             {"feature": "sar_vh", "impact": "LOW", "value": -0.082, "direction": "decreases"},
@@ -356,13 +374,19 @@ def handle_demo_scenario(lat: float, lon: float, scenario: str):
             "elevation": 1450.0,
             "slope": 33.8,
             "aspect": 195.0,
+            "tri": 18.6,
+            "relief_5x5": 112.0,
+            "plan_curvature": -0.62,
+            "dist_to_infrastructure_km": 4.8,
             "rainfall_7d_mm": 218.6,
             "sar_vv": 0.785,
             "sar_vh": 0.142
         }
         exp = [
             {"feature": "rainfall_7d_mm", "impact": "VERY HIGH", "value": 2.418, "direction": "increases"},
+            {"feature": "dist_to_infrastructure_km", "impact": "VERY HIGH", "value": 2.120, "direction": "increases"},
             {"feature": "slope", "impact": "HIGH", "value": 1.745, "direction": "increases"},
+            {"feature": "tri", "impact": "HIGH", "value": 1.340, "direction": "increases"},
             {"feature": "sar_vv", "impact": "HIGH", "value": 1.120, "direction": "increases"},
             {"feature": "elevation", "impact": "MODERATE", "value": 0.635, "direction": "increases"},
             {"feature": "sar_vh", "impact": "MODERATE", "value": 0.380, "direction": "increases"},
@@ -397,13 +421,19 @@ def handle_demo_scenario(lat: float, lon: float, scenario: str):
             "elevation": 1920.0,
             "slope": 42.4,
             "aspect": 210.0,
+            "tri": 28.4,
+            "relief_5x5": 185.0,
+            "plan_curvature": -1.15,
+            "dist_to_infrastructure_km": 1.2,
             "rainfall_7d_mm": 412.0,
             "sar_vv": 1.340,
             "sar_vh": 0.285
         }
         exp = [
             {"feature": "rainfall_7d_mm", "impact": "VERY HIGH", "value": 3.890, "direction": "increases"},
+            {"feature": "dist_to_infrastructure_km", "impact": "VERY HIGH", "value": 3.150, "direction": "increases"},
             {"feature": "slope", "impact": "VERY HIGH", "value": 2.650, "direction": "increases"},
+            {"feature": "tri", "impact": "HIGH", "value": 2.100, "direction": "increases"},
             {"feature": "sar_vv", "impact": "HIGH", "value": 1.940, "direction": "increases"},
             {"feature": "sar_vh", "impact": "HIGH", "value": 0.810, "direction": "increases"},
             {"feature": "elevation", "impact": "MODERATE", "value": 0.720, "direction": "increases"},
@@ -614,6 +644,71 @@ def get_regional_risk_summary():
         "counts": counts,
         "updated_at": datetime.now(timezone.utc).isoformat()
     }
+
+# ============================================================================
+# REAL GEOSPATIAL DATA FABRIC ENDPOINTS
+# ============================================================================
+
+from app.data_fabric.registry import data_fabric
+
+@app.get("/api/fabric/catalog")
+def get_fabric_catalog():
+    """Returns comprehensive metadata catalog for all 8 scientific data fabric providers."""
+    metrics_store["requests_total"] += 1
+    return data_fabric.get_catalog_summary()
+
+@app.get("/api/fabric/enrich")
+def enrich_point_fabric(
+    lat: float = Query(..., ge=-90.0, le=90.0),
+    lon: float = Query(..., ge=-180.0, le=180.0)
+):
+    """
+    Enriches a pinned coordinate with real multi-modal data fabric observations:
+    Topography, Hydrology, Multi-temporal Rainfall, SAR backscatter, Sentinel-2 NDVI,
+    ESA WorldCover, Infrastructure, and Historical Hazards.
+    """
+    metrics_store["requests_total"] += 1
+    return data_fabric.enrich_point(lat, lon)
+
+@app.get("/api/fabric/layers/rivers")
+def get_fabric_rivers():
+    """Returns HydroSHEDS / OSM river networks GeoJSON for the North Eastern Region."""
+    metrics_store["requests_total"] += 1
+    filepath = DATA_DIR / "rivers" / "ner_rivers.geojson"
+    if filepath.exists():
+        with open(filepath, 'r') as f:
+            return json.load(f)
+    return {"type": "FeatureCollection", "features": []}
+
+@app.get("/api/fabric/layers/basins")
+def get_fabric_basins():
+    """Returns HydroBASINS river sub-catchments GeoJSON for the North Eastern Region."""
+    metrics_store["requests_total"] += 1
+    filepath = DATA_DIR / "hydrology" / "ner_basins.geojson"
+    if filepath.exists():
+        with open(filepath, 'r') as f:
+            return json.load(f)
+    return {"type": "FeatureCollection", "features": []}
+
+@app.get("/api/fabric/layers/floods")
+def get_fabric_floods():
+    """Returns CWC / ASDMA verified historical major flood occurrences GeoJSON."""
+    metrics_store["requests_total"] += 1
+    filepath = DATA_DIR / "floods" / "ner_historical_floods.geojson"
+    if filepath.exists():
+        with open(filepath, 'r') as f:
+            return json.load(f)
+    return {"type": "FeatureCollection", "features": []}
+
+@app.get("/api/fabric/layers/roads")
+def get_fabric_roads():
+    """Returns Survey of India / OSM National Highways transport network GeoJSON."""
+    metrics_store["requests_total"] += 1
+    filepath = DATA_DIR / "infrastructure" / "ner_roads.geojson"
+    if filepath.exists():
+        with open(filepath, 'r') as f:
+            return json.load(f)
+    return {"type": "FeatureCollection", "features": []}
 
 
 

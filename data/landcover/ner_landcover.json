@@ -1,0 +1,51 @@
+{
+  "provider": "ESA WorldCover 10m / VITO Remote Sensing",
+  "version": "v200",
+  "classes": {
+    "10": {
+      "label": "Tree cover",
+      "description": "Dense forest and woodland canopy (sub-tropical/temperate)",
+      "color": "#006400"
+    },
+    "20": {
+      "label": "Shrubland",
+      "description": "Low woody vegetation and degraded scrub",
+      "color": "#ffbb22"
+    },
+    "30": {
+      "label": "Grassland",
+      "description": "Natural alpine meadows and savanna grasslands",
+      "color": "#ffff4c"
+    },
+    "40": {
+      "label": "Cropland",
+      "description": "Terraced paddy fields, tea gardens, and agricultural land",
+      "color": "#f096ff"
+    },
+    "50": {
+      "label": "Built-up",
+      "description": "Urban settlements, towns, and paved infrastructure",
+      "color": "#fa0000"
+    },
+    "60": {
+      "label": "Bare / sparse vegetation",
+      "description": "Exposed rocky scarps, landslide scars, and gravel bars",
+      "color": "#b4b4b4"
+    },
+    "70": {
+      "label": "Snow and ice",
+      "description": "Glaciers and perennial snow fields (North Sikkim / Arunachal)",
+      "color": "#f0f0f0"
+    },
+    "80": {
+      "label": "Permanent water bodies",
+      "description": "Major rivers, wetlands, and lakes",
+      "color": "#0064c8"
+    },
+    "90": {
+      "label": "Herbaceous wetland",
+      "description": "Floodplain swamps and beels (Kaziranga/Majuli)",
+      "color": "#0096a0"
+    }
+  }
+}

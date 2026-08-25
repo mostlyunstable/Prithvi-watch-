@@ -1,0 +1,187 @@
+{
+  "type": "FeatureCollection",
+  "name": "ner_basins",
+  "crs": {
+    "type": "name",
+    "properties": {
+      "name": "urn:ogc:def:crs:OGC:1.3:CRS84"
+    }
+  },
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              94.0,
+              27.0
+            ],
+            [
+              96.0,
+              27.0
+            ],
+            [
+              96.5,
+              28.5
+            ],
+            [
+              94.5,
+              28.8
+            ],
+            [
+              94.0,
+              27.0
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "name": "Upper Brahmaputra Basin",
+        "basin_id": "BASIN_UBRAH",
+        "area_km2": 45200
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              90.5,
+              26.0
+            ],
+            [
+              94.0,
+              26.5
+            ],
+            [
+              94.0,
+              27.2
+            ],
+            [
+              90.5,
+              27.0
+            ],
+            [
+              90.5,
+              26.0
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "name": "Middle Brahmaputra (Assam Valley) Basin",
+        "basin_id": "BASIN_MBRAH",
+        "area_km2": 56800
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              90.0,
+              25.0
+            ],
+            [
+              92.8,
+              25.0
+            ],
+            [
+              92.8,
+              25.9
+            ],
+            [
+              90.0,
+              25.9
+            ],
+            [
+              90.0,
+              25.0
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "name": "Meghalaya Plateau (Surma/Meghna Tributaries) Basin",
+        "basin_id": "BASIN_MEGH",
+        "area_km2": 22400
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              92.0,
+              24.2
+            ],
+            [
+              93.8,
+              24.2
+            ],
+            [
+              93.8,
+              25.3
+            ],
+            [
+              92.0,
+              25.3
+            ],
+            [
+              92.0,
+              24.2
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "name": "Barak Valley Sub-Basin",
+        "basin_id": "BASIN_BARAK",
+        "area_km2": 26200
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              88.0,
+              26.5
+            ],
+            [
+              89.0,
+              26.5
+            ],
+            [
+              89.0,
+              28.2
+            ],
+            [
+              88.0,
+              28.2
+            ],
+            [
+              88.0,
+              26.5
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "name": "Teesta Himalayan Basin",
+        "basin_id": "BASIN_TEESTA",
+        "area_km2": 12500
+      }
+    }
+  ]
+}

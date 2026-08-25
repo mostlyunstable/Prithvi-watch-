@@ -201,3 +201,89 @@ def get_live_sentinel1(lat: float, lon: float) -> Dict[str, Any]:
             "source": "Sentinel-1 RTC (Planetary Computer)",
             "error": str(e)
         }
+
+
+def get_sentinel1_backscatter(lat: float, lon: float, date_str: str) -> Dict[str, Any]:
+    """
+    Fetches pre-event Sentinel-1 SAR backscatter for historical reference dates.
+    
+    Temporal interval: [T - 30 days, T] (strictly before or on reference date T)
+    - If date T is prior to Sentinel-1 operations (Oct 2014) or no scene exists:
+      returns scientifically justified neutral background values (VV=0.35, VH=0.08)
+      with sar_available=False, avoiding false class-correlated sar=0 artifacts.
+    """
+    try:
+        dt = pd.to_datetime(date_str)
+        if dt.tzinfo is None:
+            dt = dt.tz_localize(timezone.utc)
+        else:
+            dt = dt.tz_convert(timezone.utc)
+
+        s1_start = datetime(2014, 10, 1, tzinfo=timezone.utc)
+        if dt < s1_start:
+            return {
+                "sar_vv": 0.35,
+                "sar_vh": 0.08,
+                "sar_available": False,
+                "acquisition_date": None,
+                "source": "Degraded (Pre-Sentinel-1 Era)",
+                "error": "Historical date precedes Sentinel-1 operational constellation"
+            }
+
+        end_date = dt.strftime("%Y-%m-%dT%H:%M:%SZ")
+        start_date = (dt - timedelta(days=30)).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+        search_url = "https://planetarycomputer.microsoft.com/api/stac/v1/search"
+        payload = {
+            "collections": ["sentinel-1-rtc"],
+            "intersects": {"type": "Point", "coordinates": [lon, lat]},
+            "datetime": f"{start_date}/{end_date}",
+            "limit": 1,
+        }
+
+        resp = _session.post(search_url, json=payload, timeout=(3.0, 7.0))
+        if resp.status_code == 200:
+            items = resp.json().get("features", [])
+            if items:
+                item = items[0]
+                acq_date = item.get("properties", {}).get("datetime")
+                vv_url = item["assets"].get("vv", {}).get("href")
+                vh_url = item["assets"].get("vh", {}).get("href")
+                crs_epsg = item.get("properties", {}).get("proj:epsg", 32646)
+
+                if vv_url and vh_url:
+                    token = _get_sas_token()
+                    signed_vv = f"{vv_url}?{token}" if token else vv_url
+                    signed_vh = f"{vh_url}?{token}" if token else vh_url
+
+                    vv_val = _read_pixel_from_cog(signed_vv, lon, lat, crs_epsg)
+                    vh_val = _read_pixel_from_cog(signed_vh, lon, lat, crs_epsg)
+
+                    if vv_val is not None and vh_val is not None:
+                        return {
+                            "sar_vv": round(float(vv_val), 4),
+                            "sar_vh": round(float(vh_val), 4),
+                            "sar_available": True,
+                            "acquisition_date": acq_date,
+                            "source": "Sentinel-1 RTC (Planetary Computer)",
+                            "error": None
+                        }
+
+        return {
+            "sar_vv": 0.35,
+            "sar_vh": 0.08,
+            "sar_available": False,
+            "acquisition_date": None,
+            "source": "Degraded (Neutral Median Imputed)",
+            "error": "No valid SAR scene found in 30-day pre-event window"
+        }
+    except Exception as e:
+        return {
+            "sar_vv": 0.35,
+            "sar_vh": 0.08,
+            "sar_available": False,
+            "acquisition_date": None,
+            "source": "Degraded (Neutral Median Imputed)",
+            "error": str(e)
+        }
+

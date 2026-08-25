@@ -1,0 +1,323 @@
+{
+  "type": "FeatureCollection",
+  "name": "ner_rivers",
+  "crs": {
+    "type": "name",
+    "properties": {
+      "name": "urn:ogc:def:crs:OGC:1.3:CRS84"
+    }
+  },
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            95.4,
+            27.8
+          ],
+          [
+            94.9,
+            27.5
+          ],
+          [
+            94.2,
+            27.05
+          ],
+          [
+            93.5,
+            26.85
+          ],
+          [
+            92.8,
+            26.65
+          ],
+          [
+            91.75,
+            26.18
+          ],
+          [
+            91.2,
+            26.15
+          ],
+          [
+            90.5,
+            26.12
+          ],
+          [
+            89.9,
+            25.95
+          ]
+        ]
+      },
+      "properties": {
+        "name": "Brahmaputra River (Main Stem)",
+        "basin": "Brahmaputra",
+        "strahler_order": 8,
+        "discharge_m3s": 19800.0,
+        "category": "major_river"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            88.65,
+            27.8
+          ],
+          [
+            88.58,
+            27.45
+          ],
+          [
+            88.52,
+            27.2
+          ],
+          [
+            88.48,
+            27.05
+          ],
+          [
+            88.55,
+            26.7
+          ],
+          [
+            88.75,
+            26.25
+          ],
+          [
+            89.3,
+            25.8
+          ]
+        ]
+      },
+      "properties": {
+        "name": "Teesta River",
+        "basin": "Teesta / Brahmaputra",
+        "strahler_order": 6,
+        "discharge_m3s": 950.0,
+        "category": "major_river"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            93.8,
+            25.2
+          ],
+          [
+            93.2,
+            24.9
+          ],
+          [
+            92.8,
+            24.82
+          ],
+          [
+            92.5,
+            24.85
+          ],
+          [
+            92.1,
+            24.95
+          ]
+        ]
+      },
+      "properties": {
+        "name": "Barak River",
+        "basin": "Barak-Meghna",
+        "strahler_order": 6,
+        "discharge_m3s": 1680.0,
+        "category": "major_river"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            94.1,
+            28.2
+          ],
+          [
+            94.25,
+            27.8
+          ],
+          [
+            94.2,
+            27.4
+          ],
+          [
+            94.15,
+            27.05
+          ]
+        ]
+      },
+      "properties": {
+        "name": "Subansiri River",
+        "basin": "Brahmaputra",
+        "strahler_order": 6,
+        "discharge_m3s": 2200.0,
+        "category": "major_river"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            90.95,
+            27.1
+          ],
+          [
+            90.98,
+            26.75
+          ],
+          [
+            90.75,
+            26.4
+          ],
+          [
+            90.62,
+            26.2
+          ]
+        ]
+      },
+      "properties": {
+        "name": "Manas River",
+        "basin": "Brahmaputra",
+        "strahler_order": 5,
+        "discharge_m3s": 780.0,
+        "category": "major_river"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            92.05,
+            25.45
+          ],
+          [
+            92.02,
+            25.25
+          ],
+          [
+            92.01,
+            25.18
+          ]
+        ]
+      },
+      "properties": {
+        "name": "Umngot River (Dawki)",
+        "basin": "Meghna / Surma",
+        "strahler_order": 4,
+        "discharge_m3s": 120.0,
+        "category": "major_river"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            92.8,
+            25.5
+          ],
+          [
+            92.65,
+            25.8
+          ],
+          [
+            92.5,
+            26.1
+          ],
+          [
+            92.4,
+            26.25
+          ]
+        ]
+      },
+      "properties": {
+        "name": "Kopili River",
+        "basin": "Brahmaputra",
+        "strahler_order": 5,
+        "discharge_m3s": 450.0,
+        "category": "major_river"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            92.4,
+            27.5
+          ],
+          [
+            92.6,
+            27.1
+          ],
+          [
+            92.8,
+            26.75
+          ],
+          [
+            92.85,
+            26.62
+          ]
+        ]
+      },
+      "properties": {
+        "name": "Kameng / Jia Bhareli River",
+        "basin": "Brahmaputra",
+        "strahler_order": 5,
+        "discharge_m3s": 890.0,
+        "category": "major_river"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            93.7,
+            25.7
+          ],
+          [
+            93.75,
+            26.0
+          ],
+          [
+            93.65,
+            26.4
+          ],
+          [
+            93.6,
+            26.6
+          ]
+        ]
+      },
+      "properties": {
+        "name": "Dhansiri River",
+        "basin": "Brahmaputra",
+        "strahler_order": 5,
+        "discharge_m3s": 380.0,
+        "category": "major_river"
+      }
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "dataset_name": "NASA/USGS SRTM 1 Arc-Second Global (30m)",
+  "provider": "NASA / USGS / AWS Open Data Registry",
+  "spatial_resolution": "1 arc-second (~30 meters)",
+  "temporal_resolution": "Static baseline (Mission: Feb 2000)",
+  "temporal_coverage": "2000\u2013present",
+  "ner_coverage": "Tiles N25E091, N26E091, N27E088, N27E092 (Assam, Meghalaya, Sikkim, Arunachal Pradesh)",
+  "format": "GeoTIFF (EPSG:4326 WGS84)",
+  "license": "NASA Open Data Policy (Public Domain)",
+  "access_method": "AWS Open Data Registry / Cloud-Optimized GeoTIFF",
+  "use_in_system": "Primary elevation, slope, aspect, TRI, relief, and curvature extraction",
+  "known_limitations": "Does not resolve sub-30m anthropogenic road-cuts or post-2000 mega infrastructure",
+  "file_path": "data/dem/real_dem.tif"
+}

@@ -13,10 +13,13 @@ This document details the real, documented data sources utilized in PRITHVI WATC
   - `N26E091` (Central Assam / Brahmaputra Valley)
   - `N27E088` (Sikkim / North Bengal)
   - `N27E092` (Arunachal Pradesh / Upper Assam)
-* **Processing**:
+* **Processing & Derivatives**:
   - Native `.hgt` tiles mosaicked via `rasterio.merge` to create unified regional coverage GeoTIFF (`data/dem/real_dem.tif`).
   - True Terrain Slope (degrees) computed via central differences on geographic coordinates with dynamic meter-per-degree projection scaling (`data/dem/slope.tif`).
   - True Terrain Aspect (degrees 0-360) computed via gradient arctangent (`data/dem/aspect.tif`).
+  - Terrain Ruggedness Index (`tri`): Root Mean Square of elevation differences across 3x3 local neighborhood (Wilson et al. 2007).
+  - Local Relief (`relief_5x5`): Local elevation range $\max(Z) - \min(Z)$ in 5x5 window ($\approx 150\text{m} \times 150\text{m}$).
+  - Planform Curvature (`plan_curvature`): Second spatial derivative measuring horizontal contour curvature / flow convergence (Evans 1980).
 * **License**: Public Domain (NASA/USGS).
 
 ---
@@ -80,7 +83,7 @@ This document details the real, documented data sources utilized in PRITHVI WATC
 * **Feature Types**: State capitals, metropolitan hubs, landslide-prone district headquarters, and mountain towns across NER.
 * **File**: `data/infrastructure/ner_places.geojson`
 * **Endpoint**: `GET /api/infrastructure/places`
+* **Scientific ML Feature**: `dist_to_infrastructure_km` — Geodesic haversine distance to nearest transport and settlement corridor, representing human exposure and anthropogenic cut-slope susceptibility.
 * **Usage**: GPU-rendered cartographic symbol layers (`ner-state-labels`, `ner-major-places-labels`, `ner-town-labels`) with zoom-dependent hierarchy for map readability.
-* **Scientific ML Input**: NO (Cartographic visualization only).
 * **License**: Open Database License (ODbL) / Open Data.
 
