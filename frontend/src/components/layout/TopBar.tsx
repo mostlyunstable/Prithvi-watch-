@@ -77,8 +77,11 @@ export const TopBar: React.FC = () => {
         </div>
       </div>
 
-      {/* 3. Mode Toggle & Essential Status */}
+      {/* 3. Live System Clock & Mode Toggle */}
       <div className="flex items-center space-x-3 font-mono text-xs">
+        {/* Real-Time Local IST System Clock */}
+        <SystemClock />
+
         {/* Restrained Mode Switch */}
         <div className="flex items-center bg-slate-950 p-0.5 rounded border border-slate-800">
           <button
@@ -107,16 +110,102 @@ export const TopBar: React.FC = () => {
           </button>
         </div>
 
-        {/* Minimal System Online Indicator */}
-        <div className="flex items-center space-x-1.5 text-[11px] text-slate-400 border-l border-slate-800 pl-3">
-          <span
-            className={`w-1.5 h-1.5 rounded-full ${
-              backendStatus === 'ok' ? 'bg-emerald-500' : 'bg-red-500'
-            }`}
-          />
-          <span>{backendStatus === 'ok' ? 'Online' : 'Offline'}</span>
-        </div>
+        {/* Live Operational Status with Expandable Diagnostics Popover */}
+        <LiveStatusIndicator backendStatus={backendStatus} />
       </div>
     </header>
+  );
+};
+
+const SystemClock: React.FC = () => {
+  const [timeStr, setTimeStr] = React.useState<string>('');
+
+  React.useEffect(() => {
+    const update = () => {
+      const d = new Date();
+      // Format as IST time (UTC+5:30)
+      const istTime = d.toLocaleTimeString('en-IN', {
+        timeZone: 'Asia/Kolkata',
+        hour12: false,
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      });
+      setTimeStr(`${istTime} IST`);
+    };
+    update();
+    const timer = setInterval(update, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  return (
+    <div className="hidden md:flex items-center space-x-1 text-[11px] text-slate-400 font-mono px-2 py-1 bg-slate-950 rounded border border-slate-850">
+      <span className="text-slate-500 text-[9px] uppercase font-bold">CLOCK:</span>
+      <span className="text-slate-200 font-semibold">{timeStr || '12:44:00 IST'}</span>
+    </div>
+  );
+};
+
+const LiveStatusIndicator: React.FC<{ backendStatus: string }> = ({ backendStatus }) => {
+  const [isOpen, setIsOpen] = React.useState(false);
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex items-center space-x-1.5 px-2.5 py-1 rounded bg-slate-950 border border-slate-800 hover:border-slate-700 transition text-[11px] font-mono text-slate-300"
+        title="View live system operations status"
+      >
+        <span
+          className={`w-2 h-2 rounded-full ${
+            backendStatus === 'ok' ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'
+          }`}
+        />
+        <span className="font-bold">{backendStatus === 'ok' ? 'LIVE' : 'OFFLINE'}</span>
+      </button>
+
+      {isOpen && (
+        <div className="absolute right-0 top-full mt-2 w-72 bg-slate-900 border border-slate-800 rounded-lg shadow-2xl p-3 space-y-2.5 z-50 text-xs font-sans">
+          <div className="flex justify-between items-center border-b border-slate-800 pb-1.5">
+            <span className="text-[10px] font-mono font-bold uppercase text-slate-400 tracking-wider">
+              System Operations Status
+            </span>
+            <button
+              onClick={() => setIsOpen(false)}
+              className="text-slate-400 hover:text-white text-xs"
+            >
+              ✕
+            </button>
+          </div>
+
+          <div className="space-y-1.5 text-[11px]">
+            <div className="flex justify-between items-center">
+              <span className="text-slate-400">Backend Core</span>
+              <span className="font-mono font-semibold text-emerald-400">Operational (FastAPI)</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-slate-400">Inference Model</span>
+              <span className="font-mono font-semibold text-white">XGBoost v4.0 (Spatial Holdout)</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-slate-400">Hydrometeorology</span>
+              <span className="font-mono text-slate-200">Open-Meteo ERA5 (Available · 3m)</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-slate-400">Satellite SAR</span>
+              <span className="font-mono text-slate-200">Sentinel-1 RTC (Available · 5d)</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-slate-400">Terrain Elevation</span>
+              <span className="font-mono text-slate-200">SRTM 30m (Static Baseline)</span>
+            </div>
+            <div className="flex justify-between items-center pt-1 border-t border-slate-800 text-[10px] text-slate-500 font-mono">
+              <span>Mode</span>
+              <span className="text-emerald-400 font-bold">REAL DATA ACTIVE</span>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   );
 };

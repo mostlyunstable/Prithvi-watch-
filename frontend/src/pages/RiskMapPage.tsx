@@ -7,12 +7,14 @@ import {
   X,
   ArrowRight,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Activity
 } from 'lucide-react';
 import { Map } from '../components/Map';
 import { useApp } from '../context/AppContext';
 import { generateRiskInterpretation } from '../utils/riskInterpretation';
 import { safeToFixed, formatPercent } from '../utils/geoAnalytics';
+import { LiveOperationsPanel } from '../components/LiveOperationsPanel';
 
 export const RiskMapPage: React.FC = () => {
   const {
@@ -28,6 +30,7 @@ export const RiskMapPage: React.FC = () => {
   } = useApp();
 
   const [isHotspotsOpen, setIsHotspotsOpen] = useState<boolean>(false);
+  const [isOperationsOpen, setIsOperationsOpen] = useState<boolean>(false);
   const [isPanelOpen, setIsPanelOpen] = useState<boolean>(true);
   const [showTechnicalDetails, setShowTechnicalDetails] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -117,8 +120,21 @@ export const RiskMapPage: React.FC = () => {
         )}
       </div>
 
-      {/* 3. TOP-RIGHT: TOP RISK AREAS FLOATING BUTTON & POPOVER */}
-      <div className="absolute top-4 right-48 z-20">
+      {/* 3. TOP-RIGHT: TOP RISK AREAS & LIVE OPERATIONS TOOLBAR */}
+      <div className="absolute top-4 right-48 z-20 flex items-center space-x-2">
+        <button
+          onClick={() => setIsOperationsOpen(!isOperationsOpen)}
+          className={`backdrop-blur-md border px-2.5 py-1.5 rounded-md shadow-xl text-xs font-medium flex items-center space-x-1.5 transition ${
+            isOperationsOpen
+              ? 'bg-emerald-950/90 text-emerald-300 border-emerald-800 font-bold'
+              : 'bg-slate-900/90 hover:bg-slate-850 text-slate-200 border-slate-800'
+          }`}
+          title="Toggle live operations & telemetry drawer"
+        >
+          <Activity className="w-3.5 h-3.5 text-emerald-400" />
+          <span>Live Operations</span>
+        </button>
+
         <div className="relative">
           <button
             onClick={() => setIsHotspotsOpen(!isHotspotsOpen)}
@@ -166,6 +182,13 @@ export const RiskMapPage: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* FLOATING LIVE OPERATIONS DRAWER */}
+      {isOperationsOpen && (
+        <div className="absolute top-14 left-4 z-20 w-80 sm:w-96 max-w-[calc(100vw-2rem)] max-h-[85vh] overflow-y-auto">
+          <LiveOperationsPanel />
+        </div>
+      )}
 
       {/* 4. COMPACT FLOATING LOCATION ASSESSMENT PANEL (Top-Right Overlay) */}
       {isPanelOpen && prediction && interpretation && (

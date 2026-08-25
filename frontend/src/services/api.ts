@@ -257,3 +257,89 @@ export const fetchDataAcquisitions = async () => {
   return response.json();
 };
 
+export interface OperationalSourceStatus {
+  source_name: string;
+  domain: string;
+  status: 'AVAILABLE' | 'STALE' | 'DEGRADED' | 'UNAVAILABLE';
+  observed_at: string;
+  retrieved_at: string;
+  age_display: string;
+  cadence: string;
+}
+
+export interface LiveOperationsStatusResponse {
+  system_status: string;
+  mode: string;
+  last_assessment_timestamp: string | null;
+  sources: {
+    weather: OperationalSourceStatus;
+    satellite: OperationalSourceStatus;
+    terrain: OperationalSourceStatus;
+    landslides: OperationalSourceStatus;
+    model: {
+      name: string;
+      status: string;
+      validation: string;
+      explainability: string;
+      cadence: string;
+    };
+  };
+}
+
+export interface OperationalEventRecord {
+  event_id: string;
+  timestamp: string;
+  event_type: string;
+  title: string;
+  description: string;
+  location_name: string;
+  coordinates: [number, number];
+  severity: 'INFO' | 'WARNING' | 'CRITICAL';
+  metadata: Record<string, any>;
+}
+
+export interface LiveActivityFeedResponse {
+  activity: OperationalEventRecord[];
+  count: number;
+  timestamp: string;
+}
+
+export interface RegionalRiskSummaryResponse {
+  region: string;
+  total_monitored_cells: number;
+  counts: {
+    CRITICAL: number;
+    HIGH: number;
+    MODERATE: number;
+    LOW: number;
+  };
+  updated_at: string;
+}
+
+export const fetchOperationsStatus = async (): Promise<LiveOperationsStatusResponse> => {
+  const response = await fetch(`${API_BASE_URL}/operations/status`);
+  if (!response.ok) throw new Error(`Operations status fetch failed: ${response.statusText}`);
+  return response.json();
+};
+
+export const fetchOperationsActivity = async (limit: number = 20): Promise<LiveActivityFeedResponse> => {
+  const response = await fetch(`${API_BASE_URL}/operations/activity?limit=${limit}`);
+  if (!response.ok) throw new Error(`Operations activity fetch failed: ${response.statusText}`);
+  return response.json();
+};
+
+export const triggerWeatherRefresh = async (lat: number = 25.5788, lon: number = 91.8933) => {
+  const response = await fetch(`${API_BASE_URL}/operations/refresh_weather?lat=${lat}&lon=${lon}`, {
+    method: 'POST'
+  });
+  if (!response.ok) throw new Error(`Weather refresh failed: ${response.statusText}`);
+  return response.json();
+};
+
+export const fetchRegionalRiskSummary = async (): Promise<RegionalRiskSummaryResponse> => {
+  const response = await fetch(`${API_BASE_URL}/operations/risk_summary`);
+  if (!response.ok) throw new Error(`Risk summary fetch failed: ${response.statusText}`);
+  return response.json();
+};
+
+

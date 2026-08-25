@@ -23,6 +23,7 @@ from app.ml.risk_snapshots import (
     calculate_velocity_properties,
     RiskSnapshot
 )
+from app.services.live_operations import live_operations
 
 # Configure structured application logger
 logging.basicConfig(
@@ -245,6 +246,31 @@ def run_prediction(req: PredictionRequest):
     _, prev_snap = snapshot_store.get_latest_and_previous(grid_k)
     velocity_props = calculate_velocity_properties(cur_snap, prev_snap)
     timeline_snapshots = snapshot_store.get_timeline(req.latitude, req.longitude, limit=5)
+
+    # Track in Live Operations activity feed
+    prev_lvl = None
+    prev_prob_val = None
+    if prev_snap:
+        prev_prob_val = prev_snap.risk_probability
+        if prev_prob_val >= 0.85:
+            prev_lvl = "CRITICAL"
+        elif prev_prob_val >= 0.60:
+            prev_lvl = "HIGH"
+        elif prev_prob_val >= 0.35:
+            prev_lvl = "MODERATE"
+        else:
+            prev_lvl = "LOW"
+
+    live_operations.record_assessment_completion(
+        location_name=state_label,
+        lat=req.latitude,
+        lon=req.longitude,
+        risk_level=prediction_result["risk_level"],
+        probability=round(base_prob, 4),
+        previous_level=prev_lvl,
+        previous_probability=prev_prob_val,
+        primary_driver=velocity_props.get("primary_driver") if velocity_props else None
+    )
 
     return {
         "prediction_id": req_id,
@@ -523,5 +549,59 @@ def get_data_acquisitions():
     metrics_store["requests_total"] += 1
     from app.ingestion.data_inventory import data_inventory
     return data_inventory.generate_acquisitions_metadata()
+
+@app.get("/api/operations/status")
+def get_operations_status():
+    """Returns compact live operational status and source freshness across all data pipelines."""
+    metrics_store["requests_total"] += 1
+    return live_operations.get_data_freshness_status()
+
+@app.get("/api/operations/activity")
+def get_operations_activity(limit: int = Query(20, ge=1, le=50)):
+    """Returns recent authentic application lifecycle events without fabrication."""
+    metrics_store["requests_total"] += 1
+    return {
+        "activity": live_operations.get_recent_activity(limit=limit),
+        "count": len(live_operations.get_recent_activity(limit=limit)),
+        "timestamp": datetime.now(timezone.utc).isoformat()
+    }
+
+@app.post("/api/operations/refresh_weather")
+def trigger_weather_refresh(lat: float = Query(25.5788), lon: float = Query(91.8933)):
+    """Performs controlled weather ingestion with change detection and event recording."""
+    metrics_store["requests_total"] += 1
+    from app.ml.weather import get_live_rainfall
+    weather_res = get_live_rainfall(lat, lon)
+    changed = False
+    if weather_res.get("available") and weather_res.get("rainfall_7d_mm") is not None:
+        changed = live_operations.evaluate_weather_change(lat, lon, weather_res["rainfall_7d_mm"], 22.0)
+    
+    return {
+        "status": "SUCCESS",
+        "changed": changed,
+        "rainfall_7d_mm": weather_res.get("rainfall_7d_mm"),
+        "source": weather_res.get("source"),
+        "timestamp": datetime.now(timezone.utc).isoformat()
+    }
+
+@app.get("/api/operations/risk_summary")
+def get_regional_risk_summary():
+    """Computes genuine cell counts (Critical, High, Moderate, Low) from the active risk grid."""
+    metrics_store["requests_total"] += 1
+    # Sample standard core NER extent
+    grid_geojson = generate_risk_geojson(89.8, 25.0, 92.8, 26.1, resolution=0.05)
+    counts = {"CRITICAL": 0, "HIGH": 0, "MODERATE": 0, "LOW": 0}
+    for feat in grid_geojson.get("features", []):
+        lvl = feat.get("properties", {}).get("risk_level", "LOW")
+        if lvl in counts:
+            counts[lvl] += 1
+
+    return {
+        "region": "Core NER (Meghalaya - Assam - Sikkim corridor)",
+        "total_monitored_cells": sum(counts.values()),
+        "counts": counts,
+        "updated_at": datetime.now(timezone.utc).isoformat()
+    }
+
 
 
