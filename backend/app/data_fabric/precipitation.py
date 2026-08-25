@@ -65,34 +65,34 @@ class PrecipitationProvider(BaseProvider):
 
         self.status = ProviderStatus.DEGRADED
         return {
-            "rainfall_1h_mm": 0.0,
-            "rainfall_3h_mm": 0.0,
-            "rainfall_6h_mm": 0.0,
-            "rainfall_24h_mm": 0.0,
-            "rainfall_72h_mm": 0.0,
-            "rainfall_7d_mm": 0.0,
-            "rainfall_30d_mm": 0.0,
+            "rainfall_1h_mm": None,
+            "rainfall_3h_mm": None,
+            "rainfall_6h_mm": None,
+            "rainfall_24h_mm": None,
+            "rainfall_72h_mm": None,
+            "rainfall_7d_mm": None,
+            "rainfall_30d_mm": None,
             "monthly_climatology_mm": self.ner_monthly_climatology_mm.get(datetime.now(timezone.utc).month, 300.0),
-            "rainfall_anomaly_pct": 0.0,
+            "rainfall_anomaly_pct": None,
             "is_imputed": True,
-            "observation_timestamp": datetime.now(timezone.utc).isoformat()
+            "observation_timestamp": None
         }
 
     def validate(self, raw_data: Dict[str, Any]) -> bool:
-        if not raw_data or "rainfall_7d_mm" not in raw_data:
+        if not raw_data:
             return False
         return True
 
     def normalize(self, raw_data: Dict[str, Any]) -> Dict[str, Any]:
         return {
-            "rainfall_1h_mm": round(float(raw_data.get("rainfall_1h_mm", 0.0)), 1),
-            "rainfall_3h_mm": round(float(raw_data.get("rainfall_3h_mm", 0.0)), 1),
-            "rainfall_6h_mm": round(float(raw_data.get("rainfall_6h_mm", 0.0)), 1),
-            "rainfall_24h_mm": round(float(raw_data.get("rainfall_24h_mm", 0.0)), 1),
-            "rainfall_72h_mm": round(float(raw_data.get("rainfall_72h_mm", 0.0)), 1),
-            "rainfall_7d_mm": round(float(raw_data.get("rainfall_7d_mm", 0.0)), 1),
-            "rainfall_30d_mm": round(float(raw_data.get("rainfall_30d_mm", 0.0)), 1),
-            "rainfall_anomaly_pct": raw_data.get("rainfall_anomaly_pct", 0.0),
+            "rainfall_1h_mm": round(float(raw_data["rainfall_1h_mm"]), 1) if raw_data.get("rainfall_1h_mm") is not None else None,
+            "rainfall_3h_mm": round(float(raw_data["rainfall_3h_mm"]), 1) if raw_data.get("rainfall_3h_mm") is not None else None,
+            "rainfall_6h_mm": round(float(raw_data["rainfall_6h_mm"]), 1) if raw_data.get("rainfall_6h_mm") is not None else None,
+            "rainfall_24h_mm": round(float(raw_data["rainfall_24h_mm"]), 1) if raw_data.get("rainfall_24h_mm") is not None else None,
+            "rainfall_72h_mm": round(float(raw_data["rainfall_72h_mm"]), 1) if raw_data.get("rainfall_72h_mm") is not None else None,
+            "rainfall_7d_mm": round(float(raw_data["rainfall_7d_mm"]), 1) if raw_data.get("rainfall_7d_mm") is not None else None,
+            "rainfall_30d_mm": round(float(raw_data["rainfall_30d_mm"]), 1) if raw_data.get("rainfall_30d_mm") is not None else None,
+            "rainfall_anomaly_pct": raw_data.get("rainfall_anomaly_pct"),
             "is_imputed": raw_data.get("is_imputed", False),
             "status": self.status,
             "provider": self.name,

@@ -489,11 +489,21 @@ export const RiskIntelligencePanel: React.FC<RiskIntelligencePanelProps> = ({
                     </div>
 
                     {/* Current Flood Evidence (Sentinel-1 Radar) */}
-                    <div className="p-2 bg-slate-900/90 rounded border border-blue-800/40 text-xs space-y-1">
+                    <div className="p-2 bg-slate-900/90 rounded border border-blue-800/40 text-xs space-y-1.5">
                       <div className="flex justify-between items-center text-[10px]">
-                        <span className="font-bold text-cyan-300">Current Radar Evidence:</span>
-                        <span className={`font-mono font-bold ${floodData.current_flood_evidence?.detected ? 'text-red-400' : 'text-emerald-400'}`}>
-                          {floodData.current_flood_evidence?.evidence_level}
+                        <span className="font-bold text-cyan-300">Radar Satellite Evidence:</span>
+                        <span className={`px-1.5 py-0.5 rounded font-mono font-bold text-[9px] ${
+                          floodData.current_flood_evidence?.evidence_level === 'CONFIRMED_WATER_INUNDATION' ? 'text-red-300 bg-red-950/80 border border-red-700' :
+                          floodData.current_flood_evidence?.evidence_level === 'SATURATED_FLOODPLAIN' ? 'text-amber-300 bg-amber-950/80 border border-amber-700' :
+                          floodData.current_flood_evidence?.evidence_level === 'DRY_SURFACE' ? 'text-emerald-300 bg-emerald-950/80 border border-emerald-700' :
+                          floodData.current_flood_evidence?.evidence_level === 'SNOW_OR_RADAR_SHADOW' ? 'text-cyan-300 bg-cyan-950/80 border border-cyan-700' :
+                          'text-slate-400 bg-slate-800 border border-slate-700'
+                        }`}>
+                          {floodData.current_flood_evidence?.evidence_level === 'CONFIRMED_WATER_INUNDATION' ? '● FLOOD INUNDATION DETECTED' :
+                           floodData.current_flood_evidence?.evidence_level === 'SATURATED_FLOODPLAIN' ? '● SATURATED FLOODPLAIN' :
+                           floodData.current_flood_evidence?.evidence_level === 'DRY_SURFACE' ? '● DRY SURFACE CONFIRMED' :
+                           floodData.current_flood_evidence?.evidence_level === 'SNOW_OR_RADAR_SHADOW' ? '● ALPINE SNOW / SHADOW' :
+                           '○ SATELLITE UNOBSERVED'}
                         </span>
                       </div>
                       <p className="text-[10px] text-slate-300 leading-snug">
