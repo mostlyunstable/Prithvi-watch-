@@ -9,7 +9,8 @@ import {
   ShieldAlert,
   HelpCircle,
   FileCode2,
-  Sliders
+  Sliders,
+  Database
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { formatPercent } from '../../utils/geoAnalytics';
@@ -23,6 +24,7 @@ export const Sidebar: React.FC = () => {
     { name: 'Location Check', path: '/assessment', icon: Crosshair },
     { name: 'Past Landslides', path: '/history', icon: History },
     { name: 'What the System Sees', path: '/observations', icon: Activity },
+    { name: 'Data Coverage', path: '/coverage', icon: Database },
     { name: 'How It Works', path: '/model', icon: HelpCircle },
     { name: 'What-If Scenarios', path: '/scenarios', icon: Sliders },
     { name: 'High-Risk Areas', path: '/alerts', icon: ShieldAlert },

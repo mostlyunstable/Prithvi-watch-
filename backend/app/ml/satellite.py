@@ -76,14 +76,15 @@ def _read_pixel_from_cog(signed_url: str, lon: float, lat: float, crs_epsg: int)
     try:
         t = Transformer.from_crs("EPSG:4326", f"EPSG:{crs_epsg}", always_xy=True)
         x, y = t.transform(lon, lat)
-        with rasterio.open(signed_url) as src:
-            row, col = src.index(x, y)
-            if 0 <= row < src.height and 0 <= col < src.width:
-                window = rasterio.windows.Window(col, row, 1, 1)
-                data = src.read(1, window=window)
-                val = float(data[0, 0])
-                if val != src.nodata and not np.isnan(val) and val > 0:
-                    return val
+        with rasterio.Env(GDAL_HTTP_TIMEOUT="3", GDAL_HTTP_MAX_RETRY="1", CPL_VSIL_CURL_TIMEOUT="3"):
+            with rasterio.open(signed_url) as src:
+                row, col = src.index(x, y)
+                if 0 <= row < src.height and 0 <= col < src.width:
+                    window = rasterio.windows.Window(col, row, 1, 1)
+                    data = src.read(1, window=window)
+                    val = float(data[0, 0])
+                    if val != src.nodata and not np.isnan(val) and val > 0:
+                        return val
         return None
     except Exception:
         return None

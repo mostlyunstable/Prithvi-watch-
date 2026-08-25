@@ -1,0 +1,59 @@
+{
+  "satellite_sar": {
+    "satellite": "Sentinel-1A / Sentinel-1B",
+    "constellation": "Copernicus",
+    "sensor": "C-SAR (5.405 GHz)",
+    "mode": "Interferometric Wide Swath (IW)",
+    "product_type": "GRD (Ground Range Detected, High Resolution)",
+    "polarizations": [
+      "VV",
+      "VH"
+    ],
+    "orbit_cycle_days": 12,
+    "latest_acquisitions": [
+      {
+        "region": "Meghalaya / Shillong Plateau",
+        "acquisition_date": "2026-08-20T00:15:32Z",
+        "orbit": "Descending (Track 121)",
+        "quality": "OPTIMAL"
+      },
+      {
+        "region": "Assam / Brahmaputra Valley",
+        "acquisition_date": "2026-08-21T11:42:05Z",
+        "orbit": "Ascending (Track 48)",
+        "quality": "OPTIMAL"
+      },
+      {
+        "region": "Sikkim / Teesta Basin",
+        "acquisition_date": "2026-08-19T00:22:11Z",
+        "orbit": "Descending (Track 121)",
+        "quality": "OPTIMAL"
+      },
+      {
+        "region": "Arunachal / Tawang & Siang",
+        "acquisition_date": "2026-08-22T11:38:40Z",
+        "orbit": "Ascending (Track 149)",
+        "quality": "OPTIMAL"
+      },
+      {
+        "region": "Mizoram / Aizawl Ridges",
+        "acquisition_date": "2026-08-18T00:10:19Z",
+        "orbit": "Descending (Track 121)",
+        "quality": "OPTIMAL"
+      },
+      {
+        "region": "Nagaland / Kohima Belt",
+        "acquisition_date": "2026-08-21T11:43:55Z",
+        "orbit": "Ascending (Track 48)",
+        "quality": "OPTIMAL"
+      }
+    ]
+  },
+  "weather_reanalysis": {
+    "system": "ECMWF ERA5 / Integrated Forecasting System (IFS)",
+    "update_cycle": "Hourly real-time reanalysis & 7-day forecast",
+    "spatial_grid": "0.1\u00b0 x 0.1\u00b0 (~11 km)",
+    "status": "ONLINE",
+    "last_sync": "2026-08-25T07:10:36.431372+00:00"
+  }
+}

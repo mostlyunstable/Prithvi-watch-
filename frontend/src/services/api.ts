@@ -193,3 +193,67 @@ export const fetchPredictionTimeline = async (lat: number, lng: number, limit: n
   if (!response.ok) throw new Error(`Prediction timeline fetch failed: ${response.statusText}`);
   return response.json();
 };
+
+export interface StateCoverageMetric {
+  state_code: string;
+  capital: string;
+  area_sq_km: number;
+  dem_coverage_pct: number;
+  rainfall_coverage_pct: number;
+  sar_coverage_pct: number;
+  historical_landslides: number;
+  data_age: string;
+  status: 'OPERATIONAL' | 'PARTIAL_RASTER';
+  terrain_type: string;
+}
+
+export interface DataCoverageResponse {
+  region: string;
+  states_count: number;
+  total_geographic_area_sq_km: number;
+  overall_dem_coverage_pct: number;
+  overall_weather_coverage_pct: number;
+  overall_sar_coverage_pct: number;
+  total_historical_landslides: number;
+  states: Record<string, StateCoverageMetric>;
+  audit_timestamp: string;
+}
+
+export interface DatasetSource {
+  id: string;
+  name: string;
+  provider: string;
+  domain: string;
+  resolution: string;
+  coverage: string;
+  temporal_range: string;
+  variables: string[];
+  license: string;
+  local_files?: string[];
+  api_endpoint?: string;
+  status: string;
+}
+
+export interface DataInventoryResponse {
+  datasets: DatasetSource[];
+  last_audited: string;
+}
+
+export const fetchDataCoverage = async (): Promise<DataCoverageResponse> => {
+  const response = await fetch(`${API_BASE_URL}/data/coverage`);
+  if (!response.ok) throw new Error(`Data coverage fetch failed: ${response.statusText}`);
+  return response.json();
+};
+
+export const fetchDataInventory = async (): Promise<DataInventoryResponse> => {
+  const response = await fetch(`${API_BASE_URL}/data/inventory`);
+  if (!response.ok) throw new Error(`Data inventory fetch failed: ${response.statusText}`);
+  return response.json();
+};
+
+export const fetchDataAcquisitions = async () => {
+  const response = await fetch(`${API_BASE_URL}/data/acquisitions`);
+  if (!response.ok) throw new Error(`Data acquisitions fetch failed: ${response.statusText}`);
+  return response.json();
+};
+

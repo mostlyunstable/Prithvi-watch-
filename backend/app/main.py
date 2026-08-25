@@ -413,7 +413,20 @@ def handle_demo_scenario(lat: float, lon: float, scenario: str):
         "data_quality": {
             "dem": "AVAILABLE",
             "weather": "AVAILABLE",
-            "satellite": "AVAILABLE"
+            "satellite": "AVAILABLE",
+            "completeness": {
+                "sources_available": 5,
+                "sources_total": 5,
+                "completeness_pct": 100.0,
+                "completeness_label": "5 / 5 dynamic/required sources available",
+                "breakdown": {
+                    "Terrain (SRTM 30m)": "AVAILABLE",
+                    "Rainfall (Open-Meteo ERA5)": "AVAILABLE",
+                    "Sentinel-1 SAR (Copernicus)": "AVAILABLE",
+                    "Administrative Boundaries (Survey of India)": "AVAILABLE",
+                    "Historical Catalog (NASA GLC)": "AVAILABLE"
+                }
+            }
         },
         "telemetry": {
             "dem_error": None,
@@ -489,4 +502,26 @@ def get_prediction_timeline(
         "longitude": lng,
         "timeline": snapshot_store.get_timeline(lat, lng, limit=limit)
     }
+
+@app.get("/api/data/coverage")
+def get_data_coverage():
+    """Returns calculated genuine state-by-state data coverage across all 8 NER states."""
+    metrics_store["requests_total"] += 1
+    from app.ingestion.data_inventory import data_inventory
+    return data_inventory.calculate_state_coverage()
+
+@app.get("/api/data/inventory")
+def get_data_inventory():
+    """Returns comprehensive machine-readable dataset inventory, sources, licenses, and file checksums."""
+    metrics_store["requests_total"] += 1
+    from app.ingestion.data_inventory import data_inventory
+    return data_inventory.generate_sources_metadata()
+
+@app.get("/api/data/acquisitions")
+def get_data_acquisitions():
+    """Returns catalog of recent Copernicus Sentinel-1 SAR and ERA5 weather acquisitions."""
+    metrics_store["requests_total"] += 1
+    from app.ingestion.data_inventory import data_inventory
+    return data_inventory.generate_acquisitions_metadata()
+
 

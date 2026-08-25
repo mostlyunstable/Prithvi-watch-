@@ -1,0 +1,441 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "state_name": "Meghalaya",
+        "state_code": "ML",
+        "capital": "Shillong",
+        "area_sq_km": 22429,
+        "region": "North Eastern Region"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              89.85,
+              25.15
+            ],
+            [
+              90.2,
+              25.1
+            ],
+            [
+              91.0,
+              25.15
+            ],
+            [
+              91.75,
+              25.2
+            ],
+            [
+              92.5,
+              25.1
+            ],
+            [
+              92.8,
+              25.4
+            ],
+            [
+              92.7,
+              25.8
+            ],
+            [
+              92.0,
+              25.95
+            ],
+            [
+              91.5,
+              26.05
+            ],
+            [
+              90.5,
+              25.9
+            ],
+            [
+              89.8,
+              25.8
+            ],
+            [
+              89.85,
+              25.15
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "state_name": "Assam",
+        "state_code": "AS",
+        "capital": "Guwahati",
+        "area_sq_km": 78438,
+        "region": "North Eastern Region"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              89.7,
+              26.0
+            ],
+            [
+              90.5,
+              26.15
+            ],
+            [
+              91.5,
+              26.2
+            ],
+            [
+              92.5,
+              26.6
+            ],
+            [
+              93.5,
+              26.7
+            ],
+            [
+              94.5,
+              27.2
+            ],
+            [
+              95.5,
+              27.6
+            ],
+            [
+              96.0,
+              27.9
+            ],
+            [
+              95.5,
+              27.2
+            ],
+            [
+              94.0,
+              26.2
+            ],
+            [
+              93.0,
+              25.8
+            ],
+            [
+              92.5,
+              24.5
+            ],
+            [
+              92.8,
+              24.2
+            ],
+            [
+              92.4,
+              24.2
+            ],
+            [
+              92.0,
+              25.5
+            ],
+            [
+              90.5,
+              25.5
+            ],
+            [
+              89.7,
+              26.0
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "state_name": "Sikkim",
+        "state_code": "SK",
+        "capital": "Gangtok",
+        "area_sq_km": 7096,
+        "region": "North Eastern Region"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              88.05,
+              27.1
+            ],
+            [
+              88.1,
+              27.7
+            ],
+            [
+              88.5,
+              28.1
+            ],
+            [
+              88.85,
+              27.9
+            ],
+            [
+              88.85,
+              27.15
+            ],
+            [
+              88.5,
+              27.05
+            ],
+            [
+              88.05,
+              27.1
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "state_name": "Arunachal Pradesh",
+        "state_code": "AR",
+        "capital": "Itanagar",
+        "area_sq_km": 83743,
+        "region": "North Eastern Region"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              91.6,
+              27.3
+            ],
+            [
+              92.0,
+              28.0
+            ],
+            [
+              93.5,
+              28.6
+            ],
+            [
+              95.0,
+              29.2
+            ],
+            [
+              96.5,
+              28.8
+            ],
+            [
+              97.35,
+              28.2
+            ],
+            [
+              96.8,
+              27.5
+            ],
+            [
+              95.5,
+              27.0
+            ],
+            [
+              93.8,
+              27.0
+            ],
+            [
+              92.5,
+              26.8
+            ],
+            [
+              91.6,
+              27.3
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "state_name": "Nagaland",
+        "state_code": "NL",
+        "capital": "Kohima",
+        "area_sq_km": 16579,
+        "region": "North Eastern Region"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              93.35,
+              25.6
+            ],
+            [
+              93.8,
+              26.2
+            ],
+            [
+              94.5,
+              26.9
+            ],
+            [
+              95.2,
+              27.0
+            ],
+            [
+              95.1,
+              26.0
+            ],
+            [
+              94.5,
+              25.5
+            ],
+            [
+              93.5,
+              25.3
+            ],
+            [
+              93.35,
+              25.6
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "state_name": "Manipur",
+        "state_code": "MN",
+        "capital": "Imphal",
+        "area_sq_km": 22327,
+        "region": "North Eastern Region"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              93.1,
+              24.0
+            ],
+            [
+              93.2,
+              25.2
+            ],
+            [
+              94.2,
+              25.65
+            ],
+            [
+              94.75,
+              25.2
+            ],
+            [
+              94.5,
+              24.2
+            ],
+            [
+              93.8,
+              23.85
+            ],
+            [
+              93.1,
+              24.0
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "state_name": "Mizoram",
+        "state_code": "MZ",
+        "capital": "Aizawl",
+        "area_sq_km": 21081,
+        "region": "North Eastern Region"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              92.3,
+              22.0
+            ],
+            [
+              92.3,
+              24.1
+            ],
+            [
+              92.9,
+              24.45
+            ],
+            [
+              93.35,
+              24.2
+            ],
+            [
+              93.3,
+              22.5
+            ],
+            [
+              92.8,
+              21.9
+            ],
+            [
+              92.3,
+              22.0
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "state_name": "Tripura",
+        "state_code": "TR",
+        "capital": "Agartala",
+        "area_sq_km": 10491,
+        "region": "North Eastern Region"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              91.15,
+              23.0
+            ],
+            [
+              91.2,
+              24.2
+            ],
+            [
+              92.25,
+              24.45
+            ],
+            [
+              92.2,
+              23.5
+            ],
+            [
+              91.8,
+              22.95
+            ],
+            [
+              91.15,
+              23.0
+            ]
+          ]
+        ]
+      }
+    }
+  ]
+}

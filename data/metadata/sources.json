@@ -1,0 +1,105 @@
+{
+  "datasets": [
+    {
+      "id": "NASA_SRTM_30M",
+      "name": "NASA Shuttle Radar Topography Mission (SRTM 1 Arc-Second DEM)",
+      "provider": "NASA / USGS Land Processes Distributed Active Archive Center (LP DAAC)",
+      "domain": "Topography & Geomorphology",
+      "resolution": "30 meters (1 arc-second)",
+      "coverage": "Global / North Eastern Region (88\u00b0E\u201393\u00b0E, 25\u00b0N\u201328\u00b0N)",
+      "temporal_range": "2000-02 (Baseline 30m Digital Elevation)",
+      "variables": [
+        "elevation (m)",
+        "slope gradient (degrees)",
+        "aspect azimuth (degrees)"
+      ],
+      "license": "Public Domain (NASA Open Data Policy)",
+      "local_files": [
+        "data/dem/real_dem.tif",
+        "data/dem/slope.tif",
+        "data/dem/aspect.tif"
+      ],
+      "status": "ACTIVE_PRODUCTION"
+    },
+    {
+      "id": "NASA_GLC_COOLR",
+      "name": "NASA Global Landslide Catalog (GLC) & Cooperative Open Online Landslide Repository",
+      "provider": "NASA Goddard Space Flight Center",
+      "domain": "Historical Ground Truth & Spatial Validation",
+      "resolution": "Point events with geodetic coordinates and dates",
+      "coverage": "969 verified landslide and debris flow events across NER",
+      "temporal_range": "1956-02 to 2019-04",
+      "variables": [
+        "latitude",
+        "longitude",
+        "event_date",
+        "trigger",
+        "landslide_category",
+        "fatalities"
+      ],
+      "license": "NASA Open Data / CC-BY 4.0",
+      "local_files": [
+        "data/landslides/real_historical.geojson",
+        "data/landslides/source/historical_landslides.csv"
+      ],
+      "status": "ACTIVE_PRODUCTION"
+    },
+    {
+      "id": "OPEN_METEO_ERA5",
+      "name": "Open-Meteo Historical & Live ERA5 Atmospheric Reanalysis API",
+      "provider": "European Centre for Medium-Range Weather Forecasts (ECMWF) via Open-Meteo",
+      "domain": "Hydrometeorology & Trigger Antecedent Precipitation",
+      "resolution": "0.1\u00b0 (~11 km grid resolution)",
+      "coverage": "100% NER Terrestrial Coverage",
+      "temporal_range": "1940 to Present (Live 15-minute sync)",
+      "variables": [
+        "rainfall_7d_mm (7-day antecedent cumulative)",
+        "precipitation_forecast_24h",
+        "temperature_2m",
+        "soil_moisture_0_7cm",
+        "relative_humidity_2m"
+      ],
+      "license": "Copernicus Open Access / CC-BY 4.0",
+      "api_endpoint": "https://archive-api.open-meteo.com/v1/archive & https://api.open-meteo.com/v1/forecast",
+      "status": "ACTIVE_PRODUCTION"
+    },
+    {
+      "id": "COPERNICUS_SENTINEL_1",
+      "name": "Copernicus Sentinel-1 Synthetic Aperture Radar (SAR) RTC Backscatter",
+      "provider": "European Space Agency (ESA) / Microsoft Planetary Computer STAC",
+      "domain": "Microwave Soil Moisture & Structural Surface Deformation",
+      "resolution": "10 meters (Radiometrically Terrain Corrected C-band)",
+      "coverage": "All 8 NER States (Interferometric Wide Swath)",
+      "temporal_range": "2014 to Present (6-12 day repeat cycle)",
+      "variables": [
+        "sar_vv (Vertical-Vertical linear backscatter)",
+        "sar_vh (Vertical-Horizontal cross-pol)",
+        "sar_acquisition_date"
+      ],
+      "license": "Copernicus Sentinel Data Terms of Use",
+      "api_endpoint": "https://planetarycomputer.microsoft.com/api/stac/v1",
+      "status": "ACTIVE_PRODUCTION"
+    },
+    {
+      "id": "NER_ADMIN_BOUNDARIES",
+      "name": "Survey of India / GADM Administrative Boundaries for NER States",
+      "provider": "Survey of India / Open Data Initiative",
+      "domain": "Administrative GIS Cartography",
+      "resolution": "Vector Polygons (WGS84 EPSG:4326)",
+      "coverage": "All 8 North Eastern Region States",
+      "temporal_range": "2024 Administrative Gazette",
+      "variables": [
+        "state_name",
+        "state_code",
+        "capital",
+        "geometry"
+      ],
+      "license": "Open Government Data (OGD) India / GADM",
+      "local_files": [
+        "data/boundaries/ner_boundaries.geojson"
+      ],
+      "status": "ACTIVE_PRODUCTION"
+    }
+  ],
+  "last_audited": "2026-08-25T07:11:06.333547+00:00"
+}

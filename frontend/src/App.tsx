@@ -10,6 +10,7 @@ import { ModelPage } from './pages/ModelPage';
 import { ScenariosPage } from './pages/ScenariosPage';
 import { AlertsPage } from './pages/AlertsPage';
 import { MethodologyPage } from './pages/MethodologyPage';
+import { CoveragePage } from './pages/CoveragePage';
 
 function App() {
   return (
@@ -22,6 +23,7 @@ function App() {
             <Route path="/assessment" element={<AssessmentPage />} />
             <Route path="/history" element={<HistoryPage />} />
             <Route path="/observations" element={<ObservationsPage />} />
+            <Route path="/coverage" element={<CoveragePage />} />
             <Route path="/model" element={<ModelPage />} />
             <Route path="/scenarios" element={<ScenariosPage />} />
             <Route path="/alerts" element={<AlertsPage />} />

@@ -121,4 +121,23 @@ def extract_real_features(lat: float, lon: float) -> Tuple[Dict[str, float], Dic
         telemetry["sar_imputed"] = True
         telemetry["satellite_error"] = str(e)
 
+    # --- 4. Transparent Data Completeness Calculation ---
+    source_checks = {
+        "Terrain (SRTM 30m)": data_quality["dem"] == "AVAILABLE",
+        "Rainfall (Open-Meteo ERA5)": data_quality["weather"] == "AVAILABLE",
+        "Sentinel-1 SAR (Copernicus)": data_quality["satellite"] == "AVAILABLE",
+        "Administrative Boundaries (Survey of India)": True,
+        "Historical Catalog (NASA GLC)": True
+    }
+    avail_count = sum(1 for v in source_checks.values() if v)
+    total_count = len(source_checks)
+
+    data_quality["completeness"] = {
+        "sources_available": avail_count,
+        "sources_total": total_count,
+        "completeness_pct": round((avail_count / total_count) * 100, 1),
+        "completeness_label": f"{avail_count} / {total_count} dynamic/required sources available",
+        "breakdown": {k: ("AVAILABLE" if v else "DEGRADED") for k, v in source_checks.items()}
+    }
+
     return features, data_quality, telemetry

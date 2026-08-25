@@ -1,0 +1,108 @@
+{
+  "region": "North Eastern Region (NER), India",
+  "states_count": 8,
+  "total_geographic_area_sq_km": 262184,
+  "overall_dem_coverage_pct": 27.0,
+  "overall_weather_coverage_pct": 100.0,
+  "overall_sar_coverage_pct": 92.5,
+  "total_historical_landslides": 969,
+  "states": {
+    "Arunachal Pradesh": {
+      "state_code": "AR",
+      "capital": "Itanagar",
+      "area_sq_km": 83743,
+      "dem_coverage_pct": 12.3,
+      "rainfall_coverage_pct": 100.0,
+      "sar_coverage_pct": 90.0,
+      "historical_landslides": 95,
+      "data_age": "Real-time Live (Weather) / 12-day Cycle (SAR) / Static 30m (SRTM)",
+      "status": "OPERATIONAL",
+      "terrain_type": "Eastern Himalayan steep rugged ridges, deep valleys"
+    },
+    "Assam": {
+      "state_code": "AS",
+      "capital": "Guwahati / Dispur",
+      "area_sq_km": 78438,
+      "dem_coverage_pct": 40.3,
+      "rainfall_coverage_pct": 100.0,
+      "sar_coverage_pct": 95.0,
+      "historical_landslides": 337,
+      "data_age": "Real-time Live (Weather) / 12-day Cycle (SAR) / Static 30m (SRTM)",
+      "status": "OPERATIONAL",
+      "terrain_type": "Brahmaputra alluvial plain flanked by Karbi Anglong & Cachar hills"
+    },
+    "Manipur": {
+      "state_code": "MN",
+      "capital": "Imphal",
+      "area_sq_km": 22327,
+      "dem_coverage_pct": 0.0,
+      "rainfall_coverage_pct": 100.0,
+      "sar_coverage_pct": 90.0,
+      "historical_landslides": 10,
+      "data_age": "Real-time Live (Weather) / 12-day Cycle (SAR) / Static 30m (SRTM)",
+      "status": "PARTIAL_RASTER",
+      "terrain_type": "Intermontane valley surrounded by parallel N-S trending folded ranges"
+    },
+    "Meghalaya": {
+      "state_code": "ML",
+      "capital": "Shillong",
+      "area_sq_km": 22429,
+      "dem_coverage_pct": 100.0,
+      "rainfall_coverage_pct": 100.0,
+      "sar_coverage_pct": 95.0,
+      "historical_landslides": 0,
+      "data_age": "Real-time Live (Weather) / 12-day Cycle (SAR) / Static 30m (SRTM)",
+      "status": "OPERATIONAL",
+      "terrain_type": "Dissected crystalline plateau with deep gorges and high orographic rainfall"
+    },
+    "Mizoram": {
+      "state_code": "MZ",
+      "capital": "Aizawl",
+      "area_sq_km": 21081,
+      "dem_coverage_pct": 0.0,
+      "rainfall_coverage_pct": 100.0,
+      "sar_coverage_pct": 90.0,
+      "historical_landslides": 52,
+      "data_age": "Real-time Live (Weather) / 12-day Cycle (SAR) / Static 30m (SRTM)",
+      "status": "PARTIAL_RASTER",
+      "terrain_type": "Linear N-S anticlines and synclines prone to monsoon slope failure"
+    },
+    "Nagaland": {
+      "state_code": "NL",
+      "capital": "Kohima",
+      "area_sq_km": 16579,
+      "dem_coverage_pct": 0.0,
+      "rainfall_coverage_pct": 100.0,
+      "sar_coverage_pct": 90.0,
+      "historical_landslides": 0,
+      "data_age": "Real-time Live (Weather) / 12-day Cycle (SAR) / Static 30m (SRTM)",
+      "status": "PARTIAL_RASTER",
+      "terrain_type": "Naga Hills fold belt with steep slopes and fragile shale formations"
+    },
+    "Sikkim": {
+      "state_code": "SK",
+      "capital": "Gangtok",
+      "area_sq_km": 7096,
+      "dem_coverage_pct": 90.9,
+      "rainfall_coverage_pct": 100.0,
+      "sar_coverage_pct": 95.0,
+      "historical_landslides": 84,
+      "data_age": "Real-time Live (Weather) / 12-day Cycle (SAR) / Static 30m (SRTM)",
+      "status": "OPERATIONAL",
+      "terrain_type": "High Himalayan glaciated alpine terrain and steep Teesta river gorge"
+    },
+    "Tripura": {
+      "state_code": "TR",
+      "capital": "Agartala",
+      "area_sq_km": 10491,
+      "dem_coverage_pct": 0.0,
+      "rainfall_coverage_pct": 100.0,
+      "sar_coverage_pct": 90.0,
+      "historical_landslides": 9,
+      "data_age": "Real-time Live (Weather) / 12-day Cycle (SAR) / Static 30m (SRTM)",
+      "status": "PARTIAL_RASTER",
+      "terrain_type": "Parallel low hill ranges (Jampui, Sakhan) separated by alluvial valleys"
+    }
+  },
+  "audit_timestamp": "2026-08-25T07:11:06.182727+00:00"
+}
