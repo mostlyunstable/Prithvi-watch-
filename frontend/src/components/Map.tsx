@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import * as maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import { Home, Layers, Map as MapIcon, ChevronDown, AlertTriangle, Flame, TrendingUp } from 'lucide-react';
+import { Home, Layers, Map as MapIcon, ChevronDown, AlertTriangle, Flame, TrendingUp, Navigation } from 'lucide-react';
 import { fetchRegions, fetchHistoricalLandslides, runPrediction, fetchRiskMap, fetchRiskVelocity } from '../services/api';
 import { computeAdaptiveResolution, safeToFixed } from '../utils/geoAnalytics';
 
@@ -10,6 +10,36 @@ interface MapProps {
   activeScenario?: string;
   demoMode: boolean;
   selectedCoords: { lat: number; lng: number } | null;
+}
+
+export interface UserLocationState {
+  lat: number;
+  lng: number;
+  accuracy: number | null;
+  timestamp: string;
+}
+
+// Generate smooth geodesic polygon circle for GPS accuracy
+function createGeodesicCircle(lng: number, lat: number, radiusMeters: number, points: number = 64) {
+  const coords: [number, number][] = [];
+  const km = radiusMeters / 1000;
+  const distanceLat = km / 110.574;
+  const distanceLng = km / (111.320 * Math.cos(lat * (Math.PI / 180)));
+
+  for (let i = 0; i <= points; i++) {
+    const theta = (i / points) * (2 * Math.PI);
+    const x = distanceLng * Math.cos(theta);
+    const y = distanceLat * Math.sin(theta);
+    coords.push([lng + x, lat + y]);
+  }
+  return {
+    type: 'Feature' as const,
+    geometry: {
+      type: 'Polygon' as const,
+      coordinates: [coords]
+    },
+    properties: {}
+  };
 }
 
 // 8 NER State Centroids for Regional Reference
@@ -180,6 +210,14 @@ export const Map: React.FC<MapProps> = ({
   const [isLayerMenuOpen, setIsLayerMenuOpen] = useState<boolean>(false);
   const [isStyleMenuOpen, setIsStyleMenuOpen] = useState<boolean>(false);
 
+  // User Location State
+  const [userLocation, setUserLocation] = useState<UserLocationState | null>(null);
+  const [isLocating, setIsLocating] = useState<boolean>(false);
+  const [locationError, setLocationError] = useState<string | null>(null);
+  const [isLocationPanelOpen, setIsLocationPanelOpen] = useState<boolean>(false);
+  const userLocationRef = useRef<UserLocationState | null>(null);
+  const userLocationMarker = useRef<maplibregl.Marker | null>(null);
+
   // Synchronized state refs to eliminate stale closures
   const demoModeRef = useRef(demoMode);
   const activeScenarioRef = useRef(activeScenario);
@@ -187,6 +225,10 @@ export const Map: React.FC<MapProps> = ({
   const showBoundariesRef = useRef(showBoundaries);
   const showStateLabelsRef = useRef(showStateLabels);
   const showHistoricalRef = useRef(showHistorical);
+
+  useEffect(() => {
+    userLocationRef.current = userLocation;
+  }, [userLocation]);
 
   useEffect(() => {
     demoModeRef.current = demoMode;
@@ -251,6 +293,117 @@ export const Map: React.FC<MapProps> = ({
       essential: true
     });
   };
+
+  // Client-Side Geolocation Handler with Non-Intrusive Privacy Guarantees
+  const handleGetMyLocation = useCallback(() => {
+    if (userLocation && map.current) {
+      map.current.flyTo({
+        center: [userLocation.lng, userLocation.lat],
+        zoom: Math.max(map.current.getZoom(), 12),
+        speed: 1.2,
+        curve: 1.4,
+        essential: true
+      });
+      setIsLocationPanelOpen(true);
+      return;
+    }
+
+    if (typeof navigator === 'undefined' || !navigator.geolocation) {
+      setLocationError('Location is not supported by this browser.');
+      setTimeout(() => setLocationError(null), 4000);
+      return;
+    }
+
+    setIsLocating(true);
+    setLocationError(null);
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude, accuracy } = position.coords;
+        const nowIST = new Date().toLocaleTimeString('en-IN', {
+          timeZone: 'Asia/Kolkata',
+          hour12: false,
+          hour: '2-digit',
+          minute: '2-digit'
+        }) + ' IST';
+
+        const locState: UserLocationState = {
+          lat: latitude,
+          lng: longitude,
+          accuracy: accuracy ? Math.round(accuracy) : null,
+          timestamp: nowIST
+        };
+
+        setUserLocation(locState);
+        setIsLocating(false);
+        setIsLocationPanelOpen(true);
+
+        if (map.current) {
+          map.current.flyTo({
+            center: [longitude, latitude],
+            zoom: 12.5,
+            speed: 1.2,
+            curve: 1.4,
+            essential: true
+          });
+
+          // Update accuracy circle source
+          const accuracyGeoJSON = accuracy ? createGeodesicCircle(longitude, latitude, accuracy) : {
+            type: 'Feature',
+            geometry: { type: 'Polygon', coordinates: [] },
+            properties: {}
+          };
+
+          const src = map.current.getSource('user-location-accuracy-source') as maplibregl.GeoJSONSource;
+          if (src) {
+            src.setData(accuracyGeoJSON as any);
+          }
+
+          // Add / update GPS location marker
+          if (!userLocationMarker.current) {
+            const el = document.createElement('div');
+            el.className = 'prithvi-user-location-pin';
+            el.style.cssText = 'position: relative; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; cursor: pointer;';
+            el.innerHTML = `
+              <div style="position: absolute; width: 24px; height: 24px; border-radius: 50%; background: rgba(59, 130, 246, 0.25); animation: pulse 2s infinite;"></div>
+              <div style="position: absolute; width: 14px; height: 14px; border-radius: 50%; background: #2563eb; border: 2.5px solid #ffffff; box-shadow: 0 1px 4px rgba(0,0,0,0.5);"></div>
+            `;
+            el.addEventListener('click', (e) => {
+              e.stopPropagation();
+              setIsLocationPanelOpen((prev) => !prev);
+            });
+
+            userLocationMarker.current = new maplibregl.Marker({
+              element: el,
+              anchor: 'center'
+            })
+              .setLngLat([longitude, latitude])
+              .addTo(map.current);
+          } else {
+            userLocationMarker.current.setLngLat([longitude, latitude]);
+          }
+        }
+      },
+      (error) => {
+        setIsLocating(false);
+        let msg = 'Unable to determine your location.';
+        if (error.code === 1) {
+          msg = 'Location access was denied.';
+        } else if (error.code === 2) {
+          msg = 'Unable to determine your location.';
+        } else if (error.code === 3) {
+          msg = 'Location request timed out.';
+        }
+        setLocationError(msg);
+        setTimeout(() => setLocationError(null), 5000);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 60000
+      }
+    );
+  }, [userLocation]);
 
   // Fly to selected coords
   useEffect(() => {
@@ -705,6 +858,39 @@ export const Map: React.FC<MapProps> = ({
         stateLabelMarkers.current.push(m);
       });
     }
+
+    // 5. User Location Accuracy Circle Layer
+    if (map.current && !map.current.getSource('user-location-accuracy-source')) {
+      const accuracyGeoJSON = (userLocationRef.current && userLocationRef.current.accuracy)
+        ? createGeodesicCircle(userLocationRef.current.lng, userLocationRef.current.lat, userLocationRef.current.accuracy)
+        : { type: 'Feature', geometry: { type: 'Polygon', coordinates: [] }, properties: {} };
+
+      map.current.addSource('user-location-accuracy-source', {
+        type: 'geojson',
+        data: accuracyGeoJSON as any
+      });
+
+      map.current.addLayer({
+        id: 'user-location-accuracy-fill',
+        type: 'fill',
+        source: 'user-location-accuracy-source',
+        paint: {
+          'fill-color': '#3b82f6',
+          'fill-opacity': 0.12
+        }
+      });
+
+      map.current.addLayer({
+        id: 'user-location-accuracy-outline',
+        type: 'line',
+        source: 'user-location-accuracy-source',
+        paint: {
+          'line-color': '#3b82f6',
+          'line-width': 1.5,
+          'line-opacity': 0.45
+        }
+      });
+    }
   }, [handleInspectCoordinates]);
 
   // Master Style Load Handler ensuring persistence across basemap changes
@@ -918,14 +1104,70 @@ export const Map: React.FC<MapProps> = ({
         )}
       </div>
 
-      {/* Home / Reset View Button */}
-      <button
-        onClick={handleResetHomeView}
-        className="absolute top-24 left-2.5 z-10 bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 p-1.5 rounded-md shadow-lg transition flex items-center justify-center w-7 h-7"
-        title="Reset to Full NER Regional Overview"
-      >
-        <Home className="w-3.5 h-3.5" />
-      </button>
+      {/* Left Map Controls: Reset View + My Location */}
+      <div className="absolute top-24 left-2.5 z-10 flex flex-col space-y-1.5">
+        {/* Home / Reset View Button */}
+        <button
+          onClick={handleResetHomeView}
+          className="bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 p-1.5 rounded-md shadow-lg transition flex items-center justify-center w-7 h-7"
+          title="Reset to Full NER Regional Overview"
+        >
+          <Home className="w-3.5 h-3.5" />
+        </button>
+
+        {/* My Location / Center on Me Button */}
+        <button
+          onClick={handleGetMyLocation}
+          disabled={isLocating}
+          className={`border p-1.5 rounded-md shadow-lg transition flex items-center justify-center w-7 h-7 ${
+            userLocation
+              ? 'bg-blue-950/90 text-blue-400 border-blue-800 hover:bg-blue-900'
+              : 'bg-slate-900 hover:bg-slate-800 text-slate-300 border-slate-800'
+          }`}
+          title={userLocation ? 'Center on me' : 'My Location'}
+        >
+          <Navigation className={`w-3.5 h-3.5 ${isLocating ? 'animate-spin text-blue-400' : ''}`} />
+        </button>
+      </div>
+
+      {/* Minimal My Location Info Panel */}
+      {isLocationPanelOpen && userLocation && (
+        <div className="absolute top-24 left-12 z-20 bg-slate-900/95 backdrop-blur-md border border-slate-800 rounded-lg shadow-2xl p-2.5 text-xs text-slate-200 font-sans space-y-1 w-48">
+          <div className="flex justify-between items-center border-b border-slate-800 pb-1">
+            <span className="font-mono text-[9px] uppercase font-bold text-blue-400 tracking-wider flex items-center space-x-1">
+              <Navigation className="w-3 h-3" />
+              <span>MY LOCATION</span>
+            </span>
+            <button
+              onClick={() => setIsLocationPanelOpen(false)}
+              className="text-slate-400 hover:text-white text-xs p-0.5"
+            >
+              ✕
+            </button>
+          </div>
+          <div className="font-mono font-semibold text-white text-[11px] pt-0.5">
+            {safeToFixed(userLocation.lat, 4)}° N
+            <br />
+            {safeToFixed(userLocation.lng, 4)}° E
+          </div>
+          {userLocation.accuracy !== null && (
+            <div className="text-[10px] text-slate-400 font-mono">
+              Accuracy ±{userLocation.accuracy} m
+            </div>
+          )}
+          <div className="text-[9px] text-slate-500 font-mono pt-0.5 border-t border-slate-850">
+            Updated {userLocation.timestamp}
+          </div>
+        </div>
+      )}
+
+      {/* Temporary Location Error Notification */}
+      {locationError && (
+        <div className="absolute top-24 left-12 z-20 bg-red-950/90 border border-red-800 text-red-200 px-2.5 py-1.5 rounded text-[11px] font-medium shadow-xl flex items-center space-x-1.5">
+          <AlertTriangle className="w-3.5 h-3.5 text-red-400 shrink-0" />
+          <span>{locationError}</span>
+        </div>
+      )}
 
       {/* Top Center: View Mode Switcher (Current Risk | Risk Change) */}
       <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 hidden sm:flex items-center bg-slate-900/95 backdrop-blur-md border border-slate-800 p-0.5 rounded-lg shadow-xl text-xs font-medium">
