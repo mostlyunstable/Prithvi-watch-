@@ -46,6 +46,17 @@ class TopographyProvider(BaseProvider):
                 slope = float(src_slope.read(1, window=rasterio.windows.Window(c, r, 1, 1))[0, 0])
                 aspect = float(src_aspect.read(1, window=rasterio.windows.Window(c, r, 1, 1))[0, 0])
 
+                if elev == src_dem.nodata or elev < -500.0 or np.isnan(elev) or slope < 0.0 or np.isnan(slope):
+                    self.status = ProviderStatus.DEGRADED
+                    return {
+                        "elevation": None,
+                        "slope": None,
+                        "aspect": None,
+                        "tri": None,
+                        "relief_5x5": None,
+                        "plan_curvature": None
+                    }
+
                 # 5x5 window morphology
                 mean_lat = (bounds.bottom + bounds.top) / 2.0
                 res_x_m = src_dem.res[0] * 111319.5 * np.cos(np.radians(mean_lat))
@@ -83,40 +94,31 @@ class TopographyProvider(BaseProvider):
                     "plan_curvature": float(plan_c * 100.0)
                 }
         except Exception as e:
-            self.status = ProviderStatus.DEGRADED
             self.last_error = str(e)
-            return {}
+
+        self.status = ProviderStatus.DEGRADED
+        return {
+            "elevation": None,
+            "slope": None,
+            "aspect": None,
+            "tri": None,
+            "relief_5x5": None,
+            "plan_curvature": None
+        }
 
     def validate(self, raw_data: Dict[str, Any]) -> bool:
-        if not raw_data or raw_data.get("out_of_bounds"):
-            return False
-        elev = raw_data.get("elevation")
-        slope = raw_data.get("slope")
-        if elev is None or np.isnan(elev) or elev < -100 or elev > 8848:
-            return False
-        if slope is None or np.isnan(slope) or slope < 0 or slope > 90:
+        if not raw_data:
             return False
         return True
 
     def normalize(self, raw_data: Dict[str, Any]) -> Dict[str, Any]:
-        if not self.validate(raw_data):
-            return {
-                "elevation": 0.0,
-                "slope": 0.0,
-                "aspect": 0.0,
-                "tri": 0.0,
-                "relief_5x5": 0.0,
-                "plan_curvature": 0.0,
-                "status": self.status,
-                "provider": self.name
-            }
         return {
-            "elevation": round(float(raw_data["elevation"]), 1),
-            "slope": round(float(raw_data["slope"]), 1),
-            "aspect": round(float(raw_data["aspect"]), 1),
-            "tri": round(float(raw_data["tri"]), 2),
-            "relief_5x5": round(float(raw_data["relief_5x5"]), 1),
-            "plan_curvature": round(float(raw_data["plan_curvature"]), 4),
+            "elevation": round(float(raw_data["elevation"]), 1) if raw_data.get("elevation") is not None else None,
+            "slope": round(float(raw_data["slope"]), 1) if raw_data.get("slope") is not None else None,
+            "aspect": round(float(raw_data["aspect"]), 1) if raw_data.get("aspect") is not None else None,
+            "tri": round(float(raw_data["tri"]), 2) if raw_data.get("tri") is not None else None,
+            "relief_5x5": round(float(raw_data["relief_5x5"]), 1) if raw_data.get("relief_5x5") is not None else None,
+            "plan_curvature": round(float(raw_data["plan_curvature"]), 4) if raw_data.get("plan_curvature") is not None else None,
             "status": self.status,
             "provider": self.name
         }

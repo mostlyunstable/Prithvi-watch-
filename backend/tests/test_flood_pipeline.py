@@ -41,11 +41,11 @@ class TestHardenedFloodPipeline:
 
     def test_floodplain_vs_montane_differentiation(self):
         """
-        Low-lying alluvial floodplain (Kaziranga 26.6°N, 93.3°E) must have significantly higher
-        flood susceptibility than a steep Himalayan mountain crest (Sela Pass 27.5°N, 92.1°E).
+        Low-lying alluvial floodplain (Guwahati Brahmaputra 26.18°N, 91.75°E) must have significantly higher
+        flood susceptibility than a steep mountain scarp (Cherrapunji 25.27°N, 91.73°E).
         """
-        floodplain_res = flood_engine.assess_coordinate(26.60, 93.30)
-        montane_res = flood_engine.assess_coordinate(27.50, 92.10)
+        floodplain_res = flood_engine.assess_coordinate(26.18, 91.75)
+        montane_res = flood_engine.assess_coordinate(25.27, 91.73)
 
         assert floodplain_res["flood_susceptibility"]["score"] > montane_res["flood_susceptibility"]["score"]
         assert floodplain_res["flood_susceptibility"]["distance_to_river_km"] < montane_res["flood_susceptibility"]["distance_to_river_km"]

@@ -31,12 +31,12 @@ class SatelliteSARProvider(BaseProvider):
 
         self.status = ProviderStatus.DEGRADED
         return {
-            "sar_vv": 0.35,
-            "sar_vh": 0.08,
-            "sar_ratio": 4.375,
+            "sar_vv": None,
+            "sar_vh": None,
+            "sar_ratio": None,
             "acquisition_date": None,
-            "orbit_pass": "UNKNOWN",
-            "instrument": "Sentinel-1 (Neutral Median Imputed)"
+            "orbit_pass": "UNOBSERVED",
+            "instrument": "Sentinel-1 C-SAR (Unobserved)"
         }
 
     def validate(self, raw_data: Dict[str, Any]) -> bool:

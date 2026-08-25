@@ -27,8 +27,8 @@ class LandCoverProvider(BaseProvider):
         # High altitude North Sikkim (> 4000m) -> Snow / Alpine
         # Middle hills (1000m - 3000m) -> Tree cover / Shrubland
         # Valleys (< 500m) -> Cropland / Built-up / Water
-        elev = kwargs.get("elevation", 1200.0)
-        dist_infra = kwargs.get("dist_to_infrastructure_km", 15.0)
+        elev = float(kwargs.get("elevation") if kwargs.get("elevation") is not None else 1200.0)
+        dist_infra = float(kwargs.get("dist_to_infrastructure_km") if kwargs.get("dist_to_infrastructure_km") is not None else 15.0)
 
         if elev >= 4200:
             code = "70" # Snow and ice
