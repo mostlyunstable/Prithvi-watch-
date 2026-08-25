@@ -5,9 +5,10 @@ import pandas as pd
 from typing import Dict, Any
 from app.config import DATA_DIR, MODELS_DIR
 
-# Global model cache to avoid reloading model weights on every single grid request
+# Global model cache and GeoJSON memory cache
 _cached_model = None
-
+_geojson_cache: Dict[str, Dict[str, Any]] = {}
+MAX_GEOJSON_CACHE_SIZE = 100
 MAX_GRID_CELLS = 10_000
 
 def _get_model():
@@ -22,8 +23,12 @@ def _get_model():
 def generate_risk_geojson(min_lon: float, min_lat: float, max_lon: float, max_lat: float, resolution: float = 0.05) -> Dict[str, Any]:
     """
     Generates a GeoJSON grid of risk probabilities for the specified bounding box.
-    Optimized for sub-second vectorized inference over raster arrays with strict validation.
+    Optimized with in-memory caching and sub-second vectorized inference.
     """
+    # Check in-memory BBox cache
+    cache_key = f"{round(min_lon, 3)}_{round(min_lat, 3)}_{round(max_lon, 3)}_{round(max_lat, 3)}_{round(resolution, 4)}"
+    if cache_key in _geojson_cache:
+        return _geojson_cache[cache_key]
     # 1. Parameter Validation
     if np.isnan(resolution) or np.isinf(resolution) or resolution <= 0:
         raise ValueError(f"Invalid resolution: {resolution}. Resolution must be a positive float.")
@@ -146,7 +151,15 @@ def generate_risk_geojson(min_lon: float, min_lat: float, max_lon: float, max_la
         }
         features_list.append(poly)
         
-    return {
+    result = {
         "type": "FeatureCollection",
         "features": features_list
     }
+    
+    if len(_geojson_cache) >= MAX_GEOJSON_CACHE_SIZE:
+        # Evict oldest entry
+        first_key = next(iter(_geojson_cache))
+        del _geojson_cache[first_key]
+        
+    _geojson_cache[cache_key] = result
+    return result

@@ -1,12 +1,11 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import * as maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import { Home, Layers, Map as MapIcon, ChevronDown } from 'lucide-react';
+import { Home, Layers, Map as MapIcon, ChevronDown, AlertTriangle } from 'lucide-react';
 import { fetchRegions, fetchHistoricalLandslides, runPrediction, fetchRiskMap } from '../services/api';
 import { computeAdaptiveResolution, safeToFixed } from '../utils/geoAnalytics';
 
 interface MapProps {
-
   onPredictionResult: (result: any, lat: number, lng: number) => void;
   activeScenario?: string;
   demoMode: boolean;
@@ -49,7 +48,7 @@ const citiesGeoJSON = {
   }))
 };
 
-// High-Clarity Cartographic Basemap Styles
+// High-Performance Cartographic Basemap Styles with Instant Tile Rendering (Zero Progressive Fade)
 const BASEMAP_STYLES: Record<string, maplibregl.StyleSpecification> = {
   standard: {
     version: 8,
@@ -71,7 +70,11 @@ const BASEMAP_STYLES: Record<string, maplibregl.StyleSpecification> = {
         type: 'raster',
         source: 'carto-voyager',
         minzoom: 0,
-        maxzoom: 20
+        maxzoom: 20,
+        paint: {
+          'raster-fade-duration': 0,
+          'raster-resampling': 'linear'
+        }
       }
     ]
   },
@@ -95,7 +98,11 @@ const BASEMAP_STYLES: Record<string, maplibregl.StyleSpecification> = {
         type: 'raster',
         source: 'opentopomap',
         minzoom: 0,
-        maxzoom: 17
+        maxzoom: 17,
+        paint: {
+          'raster-fade-duration': 0,
+          'raster-resampling': 'linear'
+        }
       }
     ]
   },
@@ -119,11 +126,20 @@ const BASEMAP_STYLES: Record<string, maplibregl.StyleSpecification> = {
         type: 'raster',
         source: 'carto-dark',
         minzoom: 0,
-        maxzoom: 20
+        maxzoom: 20,
+        paint: {
+          'raster-fade-duration': 0,
+          'raster-resampling': 'linear'
+        }
       }
     ]
   }
 };
+
+// Global in-memory GeoJSON cache across component lifecycles
+let _globalBoundariesCache: any = null;
+let _globalHistoricalCache: any = null;
+const _globalRiskGridCache = new globalThis.Map<string, any>();
 
 export const Map: React.FC<MapProps> = ({
   onPredictionResult,
@@ -137,6 +153,11 @@ export const Map: React.FC<MapProps> = ({
   const stateLabelMarkers = useRef<maplibregl.Marker[]>([]);
   const hoverPopup = useRef<maplibregl.Popup | null>(null);
   const lastRiskMapDataRef = useRef<any>(null);
+  const debounceTimerRef = useRef<any>(null);
+
+  // Direct DOM refs for 60fps performance without React re-rendering on mousemove/zoom
+  const coordsDisplayRef = useRef<HTMLSpanElement>(null);
+  const zoomDisplayRef = useRef<HTMLSpanElement>(null);
 
   // Basemap & Layer Toggles
   const [basemap, setBasemap] = useState<'standard' | 'topo' | 'dark'>('standard');
@@ -145,9 +166,8 @@ export const Map: React.FC<MapProps> = ({
   const [showRiskMap, setShowRiskMap] = useState<boolean>(true);
   const [showHistorical, setShowHistorical] = useState<boolean>(true);
   const [riskMapLoading, setRiskMapLoading] = useState<boolean>(false);
-  const [cursorCoords, setCursorCoords] = useState<{ lat: number; lng: number } | null>(null);
-  const [currentZoom, setCurrentZoom] = useState<number>(6.4);
   const [isAssessing, setIsAssessing] = useState<boolean>(false);
+  const [webGlError, setWebGlError] = useState<string | null>(null);
 
   // Compact Popover Controls
   const [isLayerMenuOpen, setIsLayerMenuOpen] = useState<boolean>(false);
@@ -360,50 +380,77 @@ export const Map: React.FC<MapProps> = ({
     }
   }, [handleRiskMouseEnter, handleRiskMouseLeave]);
 
-  // Fetch Spatial Risk Grid with Zoom-Adaptive Resolution
-  const fetchRiskMapData = useCallback(async () => {
+  // Fetch Spatial Risk Grid with Zoom-Adaptive Resolution, Caching & Debouncing
+  const fetchRiskMapData = useCallback(async (immediate: boolean = false) => {
     if (!map.current) return;
     const b = map.current.getBounds();
     if (!b) return;
 
     const zoom = map.current.getZoom();
-    const resolution = computeAdaptiveResolution(
-      b.getWest(),
-      b.getSouth(),
-      b.getEast(),
-      b.getNorth(),
-      zoom
-    );
+    const west = b.getWest();
+    const south = b.getSouth();
+    const east = b.getEast();
+    const north = b.getNorth();
+    const resolution = computeAdaptiveResolution(west, south, east, north, zoom);
 
-    setRiskMapLoading(true);
-    try {
-      const data = await fetchRiskMap(
-        b.getWest(),
-        b.getSouth(),
-        b.getEast(),
-        b.getNorth(),
-        resolution
-      );
-      if (data?.features) {
-        lastRiskMapDataRef.current = data;
-        if (map.current && map.current.isStyleLoaded()) {
-          renderSpatialRiskLayers(data);
-        }
+    // Quantized cache key
+    const cacheKey = `${west.toFixed(2)},${south.toFixed(2)},${east.toFixed(2)},${north.toFixed(2)},${resolution.toFixed(3)}`;
+
+    // If already in spatial cache, render instantly with zero network delay
+    if (_globalRiskGridCache.has(cacheKey)) {
+      const cachedData = _globalRiskGridCache.get(cacheKey);
+      lastRiskMapDataRef.current = cachedData;
+      if (map.current && map.current.isStyleLoaded()) {
+        renderSpatialRiskLayers(cachedData);
       }
-    } catch (e) {
-      console.error('Failed to fetch spatial risk grid:', e);
-    } finally {
-      setRiskMapLoading(false);
+      return;
+    }
+
+    const executeFetch = async () => {
+      if (!map.current) return;
+      setRiskMapLoading(true);
+      try {
+        const data = await fetchRiskMap(west, south, east, north, resolution);
+        if (data?.features) {
+          _globalRiskGridCache.set(cacheKey, data);
+          // Limit memory cache size
+          if (_globalRiskGridCache.size > 40) {
+            const firstKey = _globalRiskGridCache.keys().next().value;
+            if (firstKey) _globalRiskGridCache.delete(firstKey);
+          }
+
+          lastRiskMapDataRef.current = data;
+          if (map.current && map.current.isStyleLoaded()) {
+            renderSpatialRiskLayers(data);
+          }
+        }
+      } catch (e) {
+        console.error('Failed to fetch spatial risk grid:', e);
+      } finally {
+        setRiskMapLoading(false);
+      }
+    };
+
+    if (immediate) {
+      executeFetch();
+    } else {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+      debounceTimerRef.current = setTimeout(executeFetch, 250);
     }
   }, [renderSpatialRiskLayers]);
 
-  // Add Operational GIS Layers
+  // Add Operational GIS Layers with In-Memory Caching
   const addOperationalGISLayers = useCallback(async () => {
     if (!map.current || !map.current.isStyleLoaded()) return;
 
-    // 1. NER State Boundaries
+    // 1. NER State Boundaries (In-Memory Cached)
     try {
-      const boundariesData = await fetchRegions();
+      if (!_globalBoundariesCache) {
+        _globalBoundariesCache = await fetchRegions();
+      }
+      const boundariesData = _globalBoundariesCache;
       if (map.current && boundariesData?.features && !map.current.getSource('ner-boundaries')) {
         map.current.addSource('ner-boundaries', { type: 'geojson', data: boundariesData });
 
@@ -427,9 +474,12 @@ export const Map: React.FC<MapProps> = ({
       console.warn('Boundaries fetch error:', e);
     }
 
-    // 2. Historical Landslides
+    // 2. Historical Landslides (In-Memory Cached)
     try {
-      const historicalData = await fetchHistoricalLandslides();
+      if (!_globalHistoricalCache) {
+        _globalHistoricalCache = await fetchHistoricalLandslides();
+      }
+      const historicalData = _globalHistoricalCache;
       if (map.current && historicalData?.features && !map.current.getSource('historical-landslides')) {
         map.current.addSource('historical-landslides', {
           type: 'geojson',
@@ -532,7 +582,7 @@ export const Map: React.FC<MapProps> = ({
     }
 
     if (showRiskMapRef.current) {
-      fetchRiskMapData();
+      fetchRiskMapData(true);
     }
   }, [addOperationalGISLayers, renderSpatialRiskLayers, fetchRiskMapData]);
 
@@ -541,47 +591,64 @@ export const Map: React.FC<MapProps> = ({
     handleStyleLoadRef.current = handleStyleLoad;
   }, [handleStyleLoad]);
 
-  // Initialize MapLibre Canvas
+  // Initialize MapLibre Canvas with Try-Catch WebGL Shielding
   useEffect(() => {
     if (map.current || !mapContainer.current) return;
 
-    const initialStyle = BASEMAP_STYLES[basemap] || BASEMAP_STYLES.standard;
+    try {
+      const initialStyle = BASEMAP_STYLES[basemap] || BASEMAP_STYLES.standard;
 
-    map.current = new maplibregl.Map({
-      container: mapContainer.current,
-      style: initialStyle,
-      center: [initialLng, initialLat],
-      zoom: initialZoom,
-      minZoom: 5.0,
-      maxZoom: 18.0,
-      attributionControl: false
-    });
+      map.current = new maplibregl.Map({
+        container: mapContainer.current,
+        style: initialStyle,
+        center: [initialLng, initialLat],
+        zoom: initialZoom,
+        minZoom: 5.0,
+        maxZoom: 18.0,
+        attributionControl: false,
+        fadeDuration: 0
+      });
 
-    map.current.addControl(new maplibregl.NavigationControl({ showCompass: true }), 'top-left');
-    map.current.addControl(new maplibregl.ScaleControl({ unit: 'metric' }), 'bottom-right');
+      map.current.addControl(new maplibregl.NavigationControl({ showCompass: true }), 'top-left');
+      map.current.addControl(new maplibregl.ScaleControl({ unit: 'metric' }), 'bottom-right');
 
-    map.current.on('mousemove', (e) => {
-      setCursorCoords({ lat: e.lngLat.lat, lng: e.lngLat.lng });
-    });
+      // Direct DOM update on mousemove without React re-render overhead
+      map.current.on('mousemove', (e) => {
+        if (coordsDisplayRef.current) {
+          const lat = e.lngLat.lat;
+          const lng = e.lngLat.lng;
+          coordsDisplayRef.current.textContent = `${safeToFixed(lat, 4, '25.8000')}° N, ${safeToFixed(lng, 4, '92.8000')}° E`;
+        }
+      });
 
-    map.current.on('zoom', () => {
-      if (map.current) setCurrentZoom(map.current.getZoom());
-    });
+      // Direct DOM update on zoom without React re-render overhead
+      map.current.on('zoom', () => {
+        if (zoomDisplayRef.current && map.current) {
+          zoomDisplayRef.current.textContent = `ZOOM ${map.current.getZoom().toFixed(1)}x`;
+        }
+      });
 
-    map.current.on('click', (e) => {
-      if ((e.originalEvent as any)?._landslideMarkerHandled) return;
-      const lat = e.lngLat.lat;
-      const lng = e.lngLat.lng;
-      if (!isNaN(lat) && !isNaN(lng)) {
-        handleInspectCoordinates(lat, lng);
-      }
-    });
+      map.current.on('click', (e) => {
+        if ((e.originalEvent as any)?._landslideMarkerHandled) return;
+        const lat = e.lngLat.lat;
+        const lng = e.lngLat.lng;
+        if (!isNaN(lat) && !isNaN(lng)) {
+          handleInspectCoordinates(lat, lng);
+        }
+      });
 
-    map.current.on('style.load', () => {
-      handleStyleLoadRef.current();
-    });
+      map.current.on('style.load', () => {
+        handleStyleLoadRef.current();
+      });
+    } catch (err: any) {
+      console.error('WebGL initialization warning in MapLibre:', err);
+      setWebGlError(err?.message || 'WebGL hardware acceleration is unavailable in this environment.');
+    }
 
     return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
       stateLabelMarkers.current.forEach((m) => m.remove());
       stateLabelMarkers.current = [];
       if (map.current) {
@@ -609,7 +676,7 @@ export const Map: React.FC<MapProps> = ({
       map.current.setLayoutProperty('spatial-risk-outline', 'visibility', vis);
     }
     if (showRiskMap && !map.current.getSource('spatial-risk-map')) {
-      fetchRiskMapData();
+      fetchRiskMapData(true);
     }
   }, [showRiskMap, fetchRiskMapData]);
 
@@ -644,13 +711,13 @@ export const Map: React.FC<MapProps> = ({
     });
   }, [showStateLabels]);
 
-  // Viewport Movement Handler for Risk Grid Updates
+  // Viewport Movement Handler for Risk Grid Updates with 250ms Debounce
   useEffect(() => {
     if (!map.current) return;
 
     const onMoveEnd = () => {
       if (showRiskMapRef.current) {
-        fetchRiskMapData();
+        fetchRiskMapData(false);
       }
     };
 
@@ -671,19 +738,33 @@ export const Map: React.FC<MapProps> = ({
         style={{ width: '100%', height: '100%', minHeight: '100%', position: 'absolute', top: 0, left: 0 }}
       />
 
-      {/* Top Left: North Arrow & GIS Coordinates HUD */}
+      {/* WebGL Fallback Banner if GPU is unavailable */}
+      {webGlError && (
+        <div className="absolute inset-0 flex items-center justify-center bg-slate-950/90 z-30 p-6">
+          <div className="max-w-md bg-slate-900 border border-slate-800 p-5 rounded-lg text-center space-y-3 shadow-2xl">
+            <AlertTriangle className="w-8 h-8 text-amber-400 mx-auto" />
+            <h3 className="text-sm font-bold text-white uppercase tracking-wider">WebGL2 Required</h3>
+            <p className="text-xs text-slate-400 leading-relaxed">
+              Interactive 3D geospatial map rendering requires WebGL2 hardware acceleration. Please ensure hardware acceleration is enabled in your browser settings.
+            </p>
+            <div className="text-[10px] font-mono text-slate-500 bg-slate-950 p-2 rounded border border-slate-850 truncate">
+              {webGlError}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Top Left: North Arrow & GIS Coordinates HUD (Direct DOM Refs for 60 FPS performance) */}
       <div className="absolute top-4 left-14 z-10 bg-slate-900/90 backdrop-blur-md border border-slate-800 px-3 py-1.5 rounded-md shadow-lg text-[11px] font-sans text-slate-300 flex items-center space-x-2.5">
         <span className="text-red-500 font-bold text-xs" title="Grid North">▲ N</span>
         <span className="text-slate-700">|</span>
-        <span className="font-semibold text-white font-mono">
-          {cursorCoords && !isNaN(cursorCoords.lat) && !isNaN(cursorCoords.lng)
-            ? `${safeToFixed(cursorCoords.lat, 4, '25.8000')}° N, ${safeToFixed(cursorCoords.lng, 4, '92.8000')}° E`
-            : selectedCoords && !isNaN(selectedCoords.lat) && !isNaN(selectedCoords.lng)
+        <span ref={coordsDisplayRef} className="font-semibold text-white font-mono">
+          {selectedCoords
             ? `${safeToFixed(selectedCoords.lat, 4, '25.8000')}° N, ${safeToFixed(selectedCoords.lng, 4, '92.8000')}° E`
             : '25.8000° N, 92.8000° E'}
         </span>
         <span className="text-slate-700">|</span>
-        <span className="text-slate-400 text-[10px] font-mono">ZOOM {safeToFixed(currentZoom, 1, '6.4')}x</span>
+        <span ref={zoomDisplayRef} className="text-slate-400 text-[10px] font-mono">ZOOM 6.4x</span>
         {isAssessing && (
           <>
             <span className="text-slate-700">|</span>
