@@ -81,28 +81,28 @@ const BASEMAP_STYLES: Record<string, maplibregl.StyleSpecification> = {
   topo: {
     version: 8,
     sources: {
-      'esri-topo': {
+      'opentopomap': {
         type: 'raster',
         tiles: [
-          'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}'
+          'https://a.tile.opentopomap.org/{z}/{x}/{y}.png',
+          'https://b.tile.opentopomap.org/{z}/{x}/{y}.png',
+          'https://c.tile.opentopomap.org/{z}/{x}/{y}.png'
         ],
         tileSize: 256,
-        attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ, TomTom, Intermap, iPC, USGS, FAO, NPS, NRCAN, GeoBase, Kadaster NL, Ordnance Survey, Esri Japan, METI, Esri China (Hong Kong), and the GIS User Community',
-        maxzoom: 19
+        attribution: '&copy; OpenTopoMap &copy; OpenStreetMap contributors',
+        maxzoom: 17
       }
     },
     layers: [
       {
-        id: 'esri-topo-base',
+        id: 'opentopomap-base',
         type: 'raster',
-        source: 'esri-topo',
+        source: 'opentopomap',
         minzoom: 0,
-        maxzoom: 19,
+        maxzoom: 17,
         paint: {
           'raster-fade-duration': 0,
-          'raster-resampling': 'linear',
-          'raster-contrast': 0.05,
-          'raster-saturation': 0.05
+          'raster-resampling': 'linear'
         }
       }
     ]
