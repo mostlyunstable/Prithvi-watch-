@@ -67,7 +67,20 @@ This document details the real, documented data sources utilized in PRITHVI WATC
 
 ## 5. Administrative Boundaries
 
-* **Source**: geoBoundaries / GADM Global Administrative Areas
-* **Coverage**: North Eastern Region (NER) state boundaries (Arunachal Pradesh, Assam, Manipur, Meghalaya, Mizoram, Nagaland, Sikkim, Tripura).
-* **File**: `data/boundaries/ner_boundaries.geojson`
-* **License**: CC BY 4.0.
+* **Source**: geoBoundaries / GADM Global Administrative Areas & Survey of India
+* **Coverage**: 8 North Eastern Region (NER) state boundaries (Arunachal Pradesh, Assam, Manipur, Meghalaya, Mizoram, Nagaland, Sikkim, Tripura).
+* **File**: `data/boundaries/ner_states.geojson` & `data/boundaries/ner_boundaries.geojson`
+* **License**: CC BY 4.0 / Open Data.
+
+---
+
+## 6. Geographic Labels & Administrative Centers
+
+* **Source**: OpenStreetMap & Survey of India Gazetteer
+* **Feature Types**: State capitals, metropolitan hubs, landslide-prone district headquarters, and mountain towns across NER.
+* **File**: `data/infrastructure/ner_places.geojson`
+* **Endpoint**: `GET /api/infrastructure/places`
+* **Usage**: GPU-rendered cartographic symbol layers (`ner-state-labels`, `ner-major-places-labels`, `ner-town-labels`) with zoom-dependent hierarchy for map readability.
+* **Scientific ML Input**: NO (Cartographic visualization only).
+* **License**: Open Database License (ODbL) / Open Data.
+

@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import * as maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { Home, Layers, Map as MapIcon, ChevronDown, AlertTriangle, Flame, TrendingUp, Navigation } from 'lucide-react';
-import { fetchRegions, fetchHistoricalLandslides, runPrediction, fetchRiskMap, fetchRiskVelocity } from '../services/api';
+import { fetchRegions, fetchHistoricalLandslides, runPrediction, fetchRiskMap, fetchRiskVelocity, fetchPlaces } from '../services/api';
 import { computeAdaptiveResolution, safeToFixed } from '../utils/geoAnalytics';
 
 interface MapProps {
@@ -42,46 +42,79 @@ function createGeodesicCircle(lng: number, lat: number, radiusMeters: number, po
   };
 }
 
-// 8 NER State Centroids for Regional Reference
-const NER_STATES = [
-  { name: 'MEGHALAYA', lat: 25.57, lng: 91.88, code: 'ML' },
-  { name: 'SIKKIM', lat: 27.53, lng: 88.51, code: 'SK' },
-  { name: 'ASSAM', lat: 26.20, lng: 92.93, code: 'AS' },
-  { name: 'ARUNACHAL PRADESH', lat: 28.21, lng: 94.72, code: 'AR' },
-  { name: 'NAGALAND', lat: 26.15, lng: 94.56, code: 'NL' },
-  { name: 'MANIPUR', lat: 24.81, lng: 93.93, code: 'MN' },
-  { name: 'MIZORAM', lat: 23.16, lng: 92.83, code: 'MZ' },
-  { name: 'TRIPURA', lat: 23.83, lng: 91.90, code: 'TR' },
-];
-
-// Key NER Strategic Cities & Hubs for Navigation
-const NER_CITIES = [
-  { name: 'Guwahati', lat: 26.1445, lng: 91.7362, state: 'Assam', rank: 'major' },
-  { name: 'Shillong', lat: 25.5788, lng: 91.8933, state: 'Meghalaya', rank: 'capital' },
-  { name: 'Gangtok', lat: 27.3389, lng: 88.6065, state: 'Sikkim', rank: 'capital' },
-  { name: 'Itanagar', lat: 27.0844, lng: 93.6053, state: 'Arunachal Pradesh', rank: 'capital' },
-  { name: 'Aizawl', lat: 23.7271, lng: 92.7176, state: 'Mizoram', rank: 'capital' },
-  { name: 'Kohima', lat: 25.6751, lng: 94.1086, state: 'Nagaland', rank: 'capital' },
-  { name: 'Imphal', lat: 24.8170, lng: 93.9368, state: 'Manipur', rank: 'capital' },
-  { name: 'Agartala', lat: 23.8315, lng: 91.2868, state: 'Tripura', rank: 'capital' },
-  { name: 'Cherrapunji', lat: 25.2700, lng: 91.7300, state: 'Meghalaya', rank: 'town' },
-  { name: 'Tawang', lat: 27.5860, lng: 91.8650, state: 'Arunachal Pradesh', rank: 'town' },
-  { name: 'Mangan', lat: 27.5050, lng: 88.5300, state: 'Sikkim', rank: 'town' },
-];
-
-const citiesGeoJSON = {
-  type: 'FeatureCollection' as const,
-  features: NER_CITIES.map((c) => ({
-    type: 'Feature' as const,
-    properties: { name: c.name, state: c.state, rank: c.rank },
-    geometry: { type: 'Point' as const, coordinates: [c.lng, c.lat] }
-  }))
+// Authentic North Eastern Region Places & Settlements (OpenStreetMap & Survey of India Gazetteer)
+const NER_PLACES_FALLBACK = {
+  type: "FeatureCollection" as const,
+  features: [
+    { type: "Feature" as const, properties: { name: "Guwahati", state: "Assam", rank: "major" }, geometry: { type: "Point" as const, coordinates: [91.7362, 26.1445] } },
+    { type: "Feature" as const, properties: { name: "Shillong", state: "Meghalaya", rank: "capital" }, geometry: { type: "Point" as const, coordinates: [91.8933, 25.5788] } },
+    { type: "Feature" as const, properties: { name: "Gangtok", state: "Sikkim", rank: "capital" }, geometry: { type: "Point" as const, coordinates: [88.6065, 27.3389] } },
+    { type: "Feature" as const, properties: { name: "Itanagar", state: "Arunachal Pradesh", rank: "capital" }, geometry: { type: "Point" as const, coordinates: [93.6053, 27.0844] } },
+    { type: "Feature" as const, properties: { name: "Aizawl", state: "Mizoram", rank: "capital" }, geometry: { type: "Point" as const, coordinates: [92.7176, 23.7271] } },
+    { type: "Feature" as const, properties: { name: "Kohima", state: "Nagaland", rank: "capital" }, geometry: { type: "Point" as const, coordinates: [94.1086, 25.6751] } },
+    { type: "Feature" as const, properties: { name: "Imphal", state: "Manipur", rank: "capital" }, geometry: { type: "Point" as const, coordinates: [93.9368, 24.8170] } },
+    { type: "Feature" as const, properties: { name: "Agartala", state: "Tripura", rank: "capital" }, geometry: { type: "Point" as const, coordinates: [91.2868, 23.8315] } },
+    { type: "Feature" as const, properties: { name: "Silchar", state: "Assam", rank: "major" }, geometry: { type: "Point" as const, coordinates: [92.7789, 24.8333] } },
+    { type: "Feature" as const, properties: { name: "Dibrugarh", state: "Assam", rank: "major" }, geometry: { type: "Point" as const, coordinates: [94.9120, 27.4728] } },
+    { type: "Feature" as const, properties: { name: "Jorhat", state: "Assam", rank: "major" }, geometry: { type: "Point" as const, coordinates: [94.2037, 26.7509] } },
+    { type: "Feature" as const, properties: { name: "Tezpur", state: "Assam", rank: "major" }, geometry: { type: "Point" as const, coordinates: [92.7926, 26.6528] } },
+    { type: "Feature" as const, properties: { name: "Nagaon", state: "Assam", rank: "major" }, geometry: { type: "Point" as const, coordinates: [92.6840, 26.3464] } },
+    { type: "Feature" as const, properties: { name: "Tinsukia", state: "Assam", rank: "major" }, geometry: { type: "Point" as const, coordinates: [95.3468, 27.4922] } },
+    { type: "Feature" as const, properties: { name: "Bongaigaon", state: "Assam", rank: "major" }, geometry: { type: "Point" as const, coordinates: [90.5534, 26.5024] } },
+    { type: "Feature" as const, properties: { name: "Dimapur", state: "Nagaland", rank: "major" }, geometry: { type: "Point" as const, coordinates: [93.7266, 25.9094] } },
+    { type: "Feature" as const, properties: { name: "Cherrapunji (Sohra)", state: "Meghalaya", rank: "town" }, geometry: { type: "Point" as const, coordinates: [91.7300, 25.2700] } },
+    { type: "Feature" as const, properties: { name: "Mawsynram", state: "Meghalaya", rank: "town" }, geometry: { type: "Point" as const, coordinates: [91.5828, 25.2974] } },
+    { type: "Feature" as const, properties: { name: "Tura", state: "Meghalaya", rank: "district_hq" }, geometry: { type: "Point" as const, coordinates: [90.2033, 25.5141] } },
+    { type: "Feature" as const, properties: { name: "Jowai", state: "Meghalaya", rank: "district_hq" }, geometry: { type: "Point" as const, coordinates: [92.2000, 25.4500] } },
+    { type: "Feature" as const, properties: { name: "Nongpoh", state: "Meghalaya", rank: "district_hq" }, geometry: { type: "Point" as const, coordinates: [91.8800, 25.9000] } },
+    { type: "Feature" as const, properties: { name: "Williamnagar", state: "Meghalaya", rank: "district_hq" }, geometry: { type: "Point" as const, coordinates: [90.6200, 25.6000] } },
+    { type: "Feature" as const, properties: { name: "Baghmara", state: "Meghalaya", rank: "district_hq" }, geometry: { type: "Point" as const, coordinates: [90.6300, 25.2000] } },
+    { type: "Feature" as const, properties: { name: "Mangan", state: "Sikkim", rank: "district_hq" }, geometry: { type: "Point" as const, coordinates: [88.5300, 27.5050] } },
+    { type: "Feature" as const, properties: { name: "Namchi", state: "Sikkim", rank: "district_hq" }, geometry: { type: "Point" as const, coordinates: [88.3500, 27.1667] } },
+    { type: "Feature" as const, properties: { name: "Geyzing", state: "Sikkim", rank: "district_hq" }, geometry: { type: "Point" as const, coordinates: [88.2500, 27.2833] } },
+    { type: "Feature" as const, properties: { name: "Singtam", state: "Sikkim", rank: "town" }, geometry: { type: "Point" as const, coordinates: [88.5000, 27.2333] } },
+    { type: "Feature" as const, properties: { name: "Rangpo", state: "Sikkim", rank: "town" }, geometry: { type: "Point" as const, coordinates: [88.5300, 27.1764] } },
+    { type: "Feature" as const, properties: { name: "Chungthang", state: "Sikkim", rank: "town" }, geometry: { type: "Point" as const, coordinates: [88.6500, 27.6000] } },
+    { type: "Feature" as const, properties: { name: "Lachen", state: "Sikkim", rank: "town" }, geometry: { type: "Point" as const, coordinates: [88.5500, 27.7167] } },
+    { type: "Feature" as const, properties: { name: "Lachung", state: "Sikkim", rank: "town" }, geometry: { type: "Point" as const, coordinates: [88.7500, 27.6833] } },
+    { type: "Feature" as const, properties: { name: "Tawang", state: "Arunachal Pradesh", rank: "district_hq" }, geometry: { type: "Point" as const, coordinates: [91.8650, 27.5860] } },
+    { type: "Feature" as const, properties: { name: "Bomdila", state: "Arunachal Pradesh", rank: "district_hq" }, geometry: { type: "Point" as const, coordinates: [92.4159, 27.2645] } },
+    { type: "Feature" as const, properties: { name: "Ziro", state: "Arunachal Pradesh", rank: "district_hq" }, geometry: { type: "Point" as const, coordinates: [93.8300, 27.5950] } },
+    { type: "Feature" as const, properties: { name: "Pasighat", state: "Arunachal Pradesh", rank: "district_hq" }, geometry: { type: "Point" as const, coordinates: [95.3333, 28.0667] } },
+    { type: "Feature" as const, properties: { name: "Aalo (Along)", state: "Arunachal Pradesh", rank: "district_hq" }, geometry: { type: "Point" as const, coordinates: [94.8000, 28.1667] } },
+    { type: "Feature" as const, properties: { name: "Tezu", state: "Arunachal Pradesh", rank: "district_hq" }, geometry: { type: "Point" as const, coordinates: [96.1667, 27.9167] } },
+    { type: "Feature" as const, properties: { name: "Roing", state: "Arunachal Pradesh", rank: "district_hq" }, geometry: { type: "Point" as const, coordinates: [95.8333, 28.1333] } },
+    { type: "Feature" as const, properties: { name: "Daporijo", state: "Arunachal Pradesh", rank: "district_hq" }, geometry: { type: "Point" as const, coordinates: [94.2167, 27.9833] } },
+    { type: "Feature" as const, properties: { name: "Khonsa", state: "Arunachal Pradesh", rank: "district_hq" }, geometry: { type: "Point" as const, coordinates: [95.5667, 27.0167] } },
+    { type: "Feature" as const, properties: { name: "Mokokchung", state: "Nagaland", rank: "district_hq" }, geometry: { type: "Point" as const, coordinates: [94.5204, 26.3256] } },
+    { type: "Feature" as const, properties: { name: "Tuensang", state: "Nagaland", rank: "district_hq" }, geometry: { type: "Point" as const, coordinates: [94.8300, 26.2800] } },
+    { type: "Feature" as const, properties: { name: "Wokha", state: "Nagaland", rank: "district_hq" }, geometry: { type: "Point" as const, coordinates: [94.2600, 26.1000] } },
+    { type: "Feature" as const, properties: { name: "Mon", state: "Nagaland", rank: "district_hq" }, geometry: { type: "Point" as const, coordinates: [95.0600, 26.7500] } },
+    { type: "Feature" as const, properties: { name: "Phek", state: "Nagaland", rank: "district_hq" }, geometry: { type: "Point" as const, coordinates: [94.5000, 25.6800] } },
+    { type: "Feature" as const, properties: { name: "Zunheboto", state: "Nagaland", rank: "district_hq" }, geometry: { type: "Point" as const, coordinates: [94.5200, 25.9700] } },
+    { type: "Feature" as const, properties: { name: "Churachandpur", state: "Manipur", rank: "district_hq" }, geometry: { type: "Point" as const, coordinates: [93.6833, 24.3333] } },
+    { type: "Feature" as const, properties: { name: "Ukhrul", state: "Manipur", rank: "district_hq" }, geometry: { type: "Point" as const, coordinates: [94.3667, 25.1167] } },
+    { type: "Feature" as const, properties: { name: "Senapati", state: "Manipur", rank: "district_hq" }, geometry: { type: "Point" as const, coordinates: [94.0167, 25.2667] } },
+    { type: "Feature" as const, properties: { name: "Tamenglong", state: "Manipur", rank: "district_hq" }, geometry: { type: "Point" as const, coordinates: [93.4833, 24.9833] } },
+    { type: "Feature" as const, properties: { name: "Chandel", state: "Manipur", rank: "district_hq" }, geometry: { type: "Point" as const, coordinates: [94.0000, 24.4000] } },
+    { type: "Feature" as const, properties: { name: "Lunglei", state: "Mizoram", rank: "district_hq" }, geometry: { type: "Point" as const, coordinates: [92.7333, 22.8833] } },
+    { type: "Feature" as const, properties: { name: "Champhai", state: "Mizoram", rank: "district_hq" }, geometry: { type: "Point" as const, coordinates: [93.3333, 23.4667] } },
+    { type: "Feature" as const, properties: { name: "Kolasib", state: "Mizoram", rank: "district_hq" }, geometry: { type: "Point" as const, coordinates: [92.6833, 24.2333] } },
+    { type: "Feature" as const, properties: { name: "Serchhip", state: "Mizoram", rank: "district_hq" }, geometry: { type: "Point" as const, coordinates: [92.8500, 23.3500] } },
+    { type: "Feature" as const, properties: { name: "Lawngtlai", state: "Mizoram", rank: "district_hq" }, geometry: { type: "Point" as const, coordinates: [92.9000, 22.5333] } },
+    { type: "Feature" as const, properties: { name: "Dharmanagar", state: "Tripura", rank: "district_hq" }, geometry: { type: "Point" as const, coordinates: [92.1667, 24.3667] } },
+    { type: "Feature" as const, properties: { name: "Udaipur", state: "Tripura", rank: "district_hq" }, geometry: { type: "Point" as const, coordinates: [91.4833, 23.5333] } },
+    { type: "Feature" as const, properties: { name: "Kailashahar", state: "Tripura", rank: "district_hq" }, geometry: { type: "Point" as const, coordinates: [92.0000, 24.3333] } },
+    { type: "Feature" as const, properties: { name: "Belonia", state: "Tripura", rank: "district_hq" }, geometry: { type: "Point" as const, coordinates: [91.4500, 23.2500] } },
+    { type: "Feature" as const, properties: { name: "Ambassa", state: "Tripura", rank: "district_hq" }, geometry: { type: "Point" as const, coordinates: [91.8500, 23.9167] } }
+  ]
 };
 
 // High-Performance Cartographic Basemap Styles with Instant Tile Rendering (Zero Progressive Fade)
 const BASEMAP_STYLES: Record<string, maplibregl.StyleSpecification> = {
   standard: {
     version: 8,
+    glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
     sources: {
       'carto-voyager': {
         type: 'raster',
@@ -110,6 +143,7 @@ const BASEMAP_STYLES: Record<string, maplibregl.StyleSpecification> = {
   },
   topo: {
     version: 8,
+    glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
     sources: {
       'opentopomap': {
         type: 'raster',
@@ -139,6 +173,7 @@ const BASEMAP_STYLES: Record<string, maplibregl.StyleSpecification> = {
   },
   dark: {
     version: 8,
+    glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
     sources: {
       'carto-dark': {
         type: 'raster',
@@ -170,6 +205,7 @@ const BASEMAP_STYLES: Record<string, maplibregl.StyleSpecification> = {
 // Global in-memory GeoJSON cache across component lifecycles
 let _globalBoundariesCache: any = null;
 let _globalHistoricalCache: any = null;
+let _globalPlacesCache: any = null;
 const _globalRiskGridCache = new globalThis.Map<string, any>();
 const _globalVelocityGridCache = new globalThis.Map<string, any>();
 
@@ -182,7 +218,6 @@ export const Map: React.FC<MapProps> = ({
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
   const marker = useRef<maplibregl.Marker | null>(null);
-  const stateLabelMarkers = useRef<maplibregl.Marker[]>([]);
   const hoverPopup = useRef<maplibregl.Popup | null>(null);
   const lastRiskMapDataRef = useRef<any>(null);
   const lastVelocityMapDataRef = useRef<any>(null);
@@ -736,7 +771,7 @@ export const Map: React.FC<MapProps> = ({
   const addOperationalGISLayers = useCallback(async () => {
     if (!map.current || !map.current.isStyleLoaded()) return;
 
-    // 1. NER State Boundaries (In-Memory Cached)
+    // 1. NER State Boundaries & State Labels (In-Memory Cached)
     try {
       if (!_globalBoundariesCache) {
         _globalBoundariesCache = await fetchRegions();
@@ -759,6 +794,29 @@ export const Map: React.FC<MapProps> = ({
           source: 'ner-boundaries',
           layout: { visibility: showBoundariesRef.current ? 'visible' : 'none' },
           paint: { 'line-color': '#2563eb', 'line-width': 1.5, 'line-opacity': 0.7 }
+        });
+
+        map.current.addLayer({
+          id: 'ner-state-labels',
+          type: 'symbol',
+          source: 'ner-boundaries',
+          minzoom: 5.0,
+          maxzoom: 8.5,
+          layout: {
+            visibility: showStateLabelsRef.current ? 'visible' : 'none',
+            'text-field': ['get', 'state_name'],
+            'text-font': ['Noto Sans Regular'],
+            'text-size': ['interpolate', ['linear'], ['zoom'], 5, 11, 7, 13],
+            'text-transform': 'uppercase',
+            'text-letter-spacing': 0.15,
+            'symbol-placement': 'point',
+            'text-allow-overlap': false
+          },
+          paint: {
+            'text-color': '#0f172a',
+            'text-halo-color': 'rgba(255, 255, 255, 0.95)',
+            'text-halo-width': 2.0
+          }
         });
       }
     } catch (e) {
@@ -827,38 +885,81 @@ export const Map: React.FC<MapProps> = ({
       console.warn('Historical landslides fetch error:', e);
     }
 
-    // 3. City Labels
-    if (map.current && !map.current.getSource('ner-cities')) {
-      map.current.addSource('ner-cities', { type: 'geojson', data: citiesGeoJSON });
-
-      map.current.addLayer({
-        id: 'ner-cities-points',
-        type: 'circle',
-        source: 'ner-cities',
-        layout: { visibility: showStateLabelsRef.current ? 'visible' : 'none' },
-        paint: {
-          'circle-radius': ['interpolate', ['linear'], ['zoom'], 6, 2.5, 9, 4.5],
-          'circle-color': '#1e293b',
-          'circle-stroke-color': '#ffffff',
-          'circle-stroke-width': 1.5
+    // 3. Real Geographic Places & Settlements (Capitals, Major Cities, District HQs, Towns)
+    try {
+      if (!_globalPlacesCache) {
+        try {
+          _globalPlacesCache = await fetchPlaces();
+        } catch {
+          _globalPlacesCache = NER_PLACES_FALLBACK;
         }
-      });
-    }
+      }
+      const placesData = _globalPlacesCache || NER_PLACES_FALLBACK;
+      if (map.current && placesData?.features && !map.current.getSource('ner-places')) {
+        map.current.addSource('ner-places', { type: 'geojson', data: placesData });
 
-    // 4. Spatial State Label Markers
-    stateLabelMarkers.current.forEach((m) => m.remove());
-    stateLabelMarkers.current = [];
+        map.current.addLayer({
+          id: 'ner-places-points',
+          type: 'circle',
+          source: 'ner-places',
+          layout: { visibility: showStateLabelsRef.current ? 'visible' : 'none' },
+          paint: {
+            'circle-radius': ['interpolate', ['linear'], ['zoom'], 5, 2.5, 9, 4.0],
+            'circle-color': '#1e293b',
+            'circle-stroke-color': '#ffffff',
+            'circle-stroke-width': 1.5
+          }
+        });
 
-    if (showStateLabelsRef.current && map.current) {
-      NER_STATES.forEach((st) => {
-        const el = document.createElement('div');
-        el.className = 'font-sans font-black text-[10px] tracking-widest text-slate-800 uppercase px-1.5 py-0.5 rounded bg-white/75 backdrop-blur-[1px] border border-slate-300 shadow-sm pointer-events-none select-none opacity-80';
-        el.innerText = st.name;
-        const m = new maplibregl.Marker({ element: el, anchor: 'center' })
-          .setLngLat([st.lng, st.lat])
-          .addTo(map.current!);
-        stateLabelMarkers.current.push(m);
-      });
+        map.current.addLayer({
+          id: 'ner-major-places-labels',
+          type: 'symbol',
+          source: 'ner-places',
+          filter: ['in', ['get', 'rank'], ['literal', ['capital', 'major']]],
+          minzoom: 5.0,
+          layout: {
+            visibility: showStateLabelsRef.current ? 'visible' : 'none',
+            'text-field': ['get', 'name'],
+            'text-font': ['Noto Sans Regular'],
+            'text-size': ['interpolate', ['linear'], ['zoom'], 5, 11, 8, 13, 12, 16],
+            'text-offset': [0, 0.85],
+            'text-anchor': 'top',
+            'symbol-sort-key': 1,
+            'text-allow-overlap': true,
+            'text-ignore-placement': true
+          },
+          paint: {
+            'text-color': '#0f172a',
+            'text-halo-color': '#ffffff',
+            'text-halo-width': 2.0
+          }
+        });
+
+        map.current.addLayer({
+          id: 'ner-town-labels',
+          type: 'symbol',
+          source: 'ner-places',
+          filter: ['in', ['get', 'rank'], ['literal', ['district_hq', 'town']]],
+          minzoom: 7.0,
+          layout: {
+            visibility: showStateLabelsRef.current ? 'visible' : 'none',
+            'text-field': ['get', 'name'],
+            'text-font': ['Noto Sans Regular'],
+            'text-size': ['interpolate', ['linear'], ['zoom'], 7, 10, 10, 12, 14, 14],
+            'text-offset': [0, 0.75],
+            'text-anchor': 'top',
+            'symbol-sort-key': 2,
+            'text-allow-overlap': false
+          },
+          paint: {
+            'text-color': '#1e293b',
+            'text-halo-color': '#ffffff',
+            'text-halo-width': 1.5
+          }
+        });
+      }
+    } catch (e) {
+      console.warn('Places fetch error:', e);
     }
 
     // 5. User Location Accuracy Circle Layer
@@ -973,8 +1074,6 @@ export const Map: React.FC<MapProps> = ({
       if (debounceTimerRef.current) {
         clearTimeout(debounceTimerRef.current);
       }
-      stateLabelMarkers.current.forEach((m) => m.remove());
-      stateLabelMarkers.current = [];
       if (map.current) {
         map.current.remove();
         map.current = null;
@@ -1064,13 +1163,18 @@ export const Map: React.FC<MapProps> = ({
   useEffect(() => {
     if (!map.current || !map.current.isStyleLoaded()) return;
     const vis = showStateLabels ? 'visible' : 'none';
-    if (map.current.getLayer('ner-cities-points')) {
-      map.current.setLayoutProperty('ner-cities-points', 'visibility', vis);
+    if (map.current.getLayer('ner-state-labels')) {
+      map.current.setLayoutProperty('ner-state-labels', 'visibility', vis);
     }
-    stateLabelMarkers.current.forEach((m) => {
-      const el = m.getElement();
-      if (el) el.style.display = showStateLabels ? 'block' : 'none';
-    });
+    if (map.current.getLayer('ner-places-points')) {
+      map.current.setLayoutProperty('ner-places-points', 'visibility', vis);
+    }
+    if (map.current.getLayer('ner-major-places-labels')) {
+      map.current.setLayoutProperty('ner-major-places-labels', 'visibility', vis);
+    }
+    if (map.current.getLayer('ner-town-labels')) {
+      map.current.setLayoutProperty('ner-town-labels', 'visibility', vis);
+    }
   }, [showStateLabels]);
 
   // Viewport Movement Handler for Risk Grid Updates with 250ms Debounce

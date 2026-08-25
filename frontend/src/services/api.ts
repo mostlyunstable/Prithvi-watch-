@@ -342,4 +342,11 @@ export const fetchRegionalRiskSummary = async (): Promise<RegionalRiskSummaryRes
   return response.json();
 };
 
+export const fetchPlaces = async (): Promise<any> => {
+  const response = await fetch(`${API_BASE_URL}/infrastructure/places`);
+  if (!response.ok) throw new Error(`Places fetch failed: ${response.statusText}`);
+  return response.json();
+};
+
+
 

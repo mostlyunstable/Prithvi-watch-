@@ -171,7 +171,19 @@ def get_model_info():
 @app.get("/api/regions")
 def get_regions():
     metrics_store["requests_total"] += 1
-    filepath = DATA_DIR / "boundaries" / "ner_boundaries.geojson"
+    filepath = DATA_DIR / "boundaries" / "ner_states.geojson"
+    if not filepath.exists():
+        filepath = DATA_DIR / "boundaries" / "ner_boundaries.geojson"
+    if filepath.exists():
+        with open(filepath, 'r') as f:
+            return json.load(f)
+    return {"type": "FeatureCollection", "features": []}
+
+@app.get("/api/infrastructure/places")
+def get_infrastructure_places():
+    """Returns authentic geographic places, district headquarters, and towns across North Eastern Region."""
+    metrics_store["requests_total"] += 1
+    filepath = DATA_DIR / "infrastructure" / "ner_places.geojson"
     if filepath.exists():
         with open(filepath, 'r') as f:
             return json.load(f)
