@@ -54,16 +54,20 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // Check URL parameters on initial load
   const initialParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+  const hasCustomParams = initialParams?.has('lat') && (initialParams?.has('lon') || initialParams?.has('lng'));
   const rawLat = initialParams?.get('lat') ? parseFloat(initialParams.get('lat')!) : 25.5788;
-  const rawLng = initialParams?.get('lon') ? parseFloat(initialParams.get('lon')!) : 91.8933;
+  const rawLng = initialParams?.get('lon') ? parseFloat(initialParams.get('lon')!) : (initialParams?.get('lng') ? parseFloat(initialParams.get('lng')!) : 91.8933);
   const initialLat = !isNaN(rawLat) ? rawLat : 25.5788;
   const initialLng = !isNaN(rawLng) ? rawLng : 91.8933;
+  const initialRegionName = hasCustomParams
+    ? `Location (${initialLat.toFixed(4)}° N, ${initialLng.toFixed(4)}° E)`
+    : 'Shillong (Meghalaya Plateau)';
 
   const [selectedCoords, setSelectedCoords] = useState<{ lat: number; lng: number } | null>({
     lat: initialLat,
     lng: initialLng
   });
-  const [selectedRegionName, setSelectedRegionName] = useState<string>('Shillong (Meghalaya Plateau)');
+  const [selectedRegionName, setSelectedRegionName] = useState<string>(initialRegionName);
   const [prediction, setPrediction] = useState<PredictionResponse | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
@@ -140,7 +144,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       .finally(() => setRiskGridLoading(false));
 
     // Initial prediction
-    selectPresetRegion(initialLat, initialLng, 'Shillong (Meghalaya Plateau)');
+    selectPresetRegion(initialLat, initialLng, initialRegionName);
   }, []);
 
   const selectPresetRegion = async (lat: number, lng: number, name: string) => {
