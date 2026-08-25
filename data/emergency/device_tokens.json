@@ -1,0 +1,169 @@
+{
+  "tokens": [
+    {
+      "id": "DEV-0BC14932",
+      "device_id": "phone-b-9ede97",
+      "push_token": "ExponentPushToken[4b5f1fc8f937417dace009]",
+      "platform": "android",
+      "phone_number": "+919876543210",
+      "responder_name": "Officer Borah (NDRF)",
+      "is_active": true,
+      "created_at": "2026-08-25T16:36:31.673260+00:00",
+      "updated_at": "2026-08-25T16:36:31.673260+00:00"
+    },
+    {
+      "id": "DEV-01C4E797",
+      "device_id": "phone-b-cc5bac",
+      "push_token": "ExponentPushToken[b78aa705db9d4bbfaf2080]",
+      "platform": "ios",
+      "phone_number": "+919876543210",
+      "responder_name": null,
+      "is_active": true,
+      "created_at": "2026-08-25T16:36:31.677220+00:00",
+      "updated_at": "2026-08-25T16:36:31.679732+00:00"
+    },
+    {
+      "id": "DEV-11D88823",
+      "device_id": "phone-b-20c9fc",
+      "push_token": "ExponentPushToken[5b30834fc70e4621924b7d]",
+      "platform": "android",
+      "phone_number": null,
+      "responder_name": null,
+      "is_active": false,
+      "created_at": "2026-08-25T16:36:31.685702+00:00",
+      "updated_at": "2026-08-25T16:36:31.688479+00:00"
+    },
+    {
+      "id": "DEV-0E44D305",
+      "device_id": "phone-b-630664",
+      "push_token": "ExponentPushToken[fc4eb6ecb1a74256988cbf]",
+      "platform": "android",
+      "phone_number": "+919876500001",
+      "responder_name": "Sita Devi (Rescue Coordinator)",
+      "is_active": true,
+      "created_at": "2026-08-25T16:36:31.692179+00:00",
+      "updated_at": "2026-08-25T16:36:31.692179+00:00"
+    },
+    {
+      "id": "DEV-866CE2A8",
+      "device_id": "phone-b-1ba7f6",
+      "push_token": "ExponentPushToken[30c8e3dacf444867895095]",
+      "platform": "ios",
+      "phone_number": "+919876500002",
+      "responder_name": null,
+      "is_active": true,
+      "created_at": "2026-08-25T16:36:31.804388+00:00",
+      "updated_at": "2026-08-25T16:36:31.804388+00:00"
+    },
+    {
+      "id": "DEV-22DE2773",
+      "device_id": "phone-b-98635d",
+      "push_token": "ExponentPushToken[d8ed57f3789f4c9b9938a5]",
+      "platform": "android",
+      "phone_number": "+919876543210",
+      "responder_name": "Officer Borah (NDRF)",
+      "is_active": true,
+      "created_at": "2026-08-25T16:36:48.992073+00:00",
+      "updated_at": "2026-08-25T16:36:48.992073+00:00"
+    },
+    {
+      "id": "DEV-B8D549D6",
+      "device_id": "phone-b-418b74",
+      "push_token": "ExponentPushToken[9713a88ba3da4b0aad9838]",
+      "platform": "ios",
+      "phone_number": "+919876543210",
+      "responder_name": null,
+      "is_active": true,
+      "created_at": "2026-08-25T16:36:48.996297+00:00",
+      "updated_at": "2026-08-25T16:36:48.998786+00:00"
+    },
+    {
+      "id": "DEV-7FC55C12",
+      "device_id": "phone-b-1bd07c",
+      "push_token": "ExponentPushToken[6869f7d5630542f7976659]",
+      "platform": "android",
+      "phone_number": null,
+      "responder_name": null,
+      "is_active": false,
+      "created_at": "2026-08-25T16:36:49.027259+00:00",
+      "updated_at": "2026-08-25T16:36:49.030076+00:00"
+    },
+    {
+      "id": "DEV-211A5047",
+      "device_id": "phone-b-8b4eeb",
+      "push_token": "ExponentPushToken[d77306e0c655489f926288]",
+      "platform": "android",
+      "phone_number": "+919876500001",
+      "responder_name": "Sita Devi (Rescue Coordinator)",
+      "is_active": true,
+      "created_at": "2026-08-25T16:36:49.033801+00:00",
+      "updated_at": "2026-08-25T16:36:49.033801+00:00"
+    },
+    {
+      "id": "DEV-A47C91D8",
+      "device_id": "phone-b-1dc0c0",
+      "push_token": "ExponentPushToken[1f6a62265d85426495effe]",
+      "platform": "ios",
+      "phone_number": "+919876500002",
+      "responder_name": null,
+      "is_active": true,
+      "created_at": "2026-08-25T16:36:49.044284+00:00",
+      "updated_at": "2026-08-25T16:36:49.044284+00:00"
+    },
+    {
+      "id": "DEV-A8CE25D0",
+      "device_id": "phone-b-bd709c",
+      "push_token": "ExponentPushToken[bdfb8c73b1ac474e91d303]",
+      "platform": "android",
+      "phone_number": "+919876543210",
+      "responder_name": "Officer Borah (NDRF)",
+      "is_active": true,
+      "created_at": "2026-08-25T16:40:02.648011+00:00",
+      "updated_at": "2026-08-25T16:40:02.648011+00:00"
+    },
+    {
+      "id": "DEV-73FA5043",
+      "device_id": "phone-b-6ac84c",
+      "push_token": "ExponentPushToken[dd43fe789c1a4f64927d23]",
+      "platform": "ios",
+      "phone_number": "+919876543210",
+      "responder_name": null,
+      "is_active": true,
+      "created_at": "2026-08-25T16:40:02.652385+00:00",
+      "updated_at": "2026-08-25T16:40:02.655330+00:00"
+    },
+    {
+      "id": "DEV-0E4010C7",
+      "device_id": "phone-b-b677e8",
+      "push_token": "ExponentPushToken[b9574338dca84ff896e1a6]",
+      "platform": "android",
+      "phone_number": null,
+      "responder_name": null,
+      "is_active": false,
+      "created_at": "2026-08-25T16:40:02.662454+00:00",
+      "updated_at": "2026-08-25T16:40:02.666654+00:00"
+    },
+    {
+      "id": "DEV-10CBD2BB",
+      "device_id": "phone-b-352a02",
+      "push_token": "ExponentPushToken[dc8d29fefec040869081d8]",
+      "platform": "android",
+      "phone_number": "+919876500001",
+      "responder_name": "Sita Devi (Rescue Coordinator)",
+      "is_active": true,
+      "created_at": "2026-08-25T16:40:02.676530+00:00",
+      "updated_at": "2026-08-25T16:40:02.676530+00:00"
+    },
+    {
+      "id": "DEV-9F0D90DC",
+      "device_id": "phone-b-83674d",
+      "push_token": "ExponentPushToken[abc09d7f225045f396c0bf]",
+      "platform": "ios",
+      "phone_number": "+919876500002",
+      "responder_name": null,
+      "is_active": true,
+      "created_at": "2026-08-25T16:40:02.689874+00:00",
+      "updated_at": "2026-08-25T16:40:02.689874+00:00"
+    }
+  ]
+}

@@ -8,18 +8,26 @@ import {
   ActivityIndicator,
   Alert
 } from 'react-native';
-import { Bell, ShieldCheck, RefreshCw, AlertCircle, ExternalLink, Send } from 'lucide-react-native';
+import { Bell, ShieldCheck, RefreshCw, Send, CheckCheck, AlertCircle } from 'lucide-react-native';
 import { NotificationReceipt } from '../types/emergency';
 import { emergencyApi } from '../services/api';
+import { getOrCreateDeviceId } from '../services/storage';
 
 export const DemoNotificationViewer: React.FC = () => {
   const [notifications, setNotifications] = useState<NotificationReceipt[]>([]);
   const [disclaimer, setDisclaimer] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(true);
+  const [deviceId, setDeviceId] = useState<string>('');
 
   useEffect(() => {
-    fetchNotifications();
+    init();
   }, []);
+
+  const init = async () => {
+    const devId = await getOrCreateDeviceId();
+    setDeviceId(devId);
+    fetchNotifications();
+  };
 
   const fetchNotifications = async () => {
     setLoading(true);
@@ -28,9 +36,19 @@ export const DemoNotificationViewer: React.FC = () => {
       setNotifications(data.notifications || []);
       setDisclaimer(data.disclaimer || 'DEMO SIMULATION ONLY');
     } catch (e: any) {
-      Alert.alert('Error', e.message || 'Could not fetch demo notifications.');
+      Alert.alert('Error', e.message || 'Could not fetch notifications.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleAcknowledge = async (receiptId: string) => {
+    try {
+      await emergencyApi.acknowledgeNotification(receiptId, deviceId);
+      Alert.alert('Acknowledged', 'Notification marked as received by responder.');
+      await fetchNotifications();
+    } catch (e: any) {
+      Alert.alert('Error', e.message || 'Could not acknowledge notification.');
     }
   };
 
@@ -38,12 +56,30 @@ export const DemoNotificationViewer: React.FC = () => {
     <View style={styles.card}>
       <View style={styles.cardHeader}>
         <View style={styles.badgeRow}>
-          <View style={styles.demoBadge}>
-            <Text style={styles.demoBadgeText}>DEMO SIMULATION</Text>
+          <View style={item.channel === 'EXPO_REAL_PUSH' ? styles.pushBadge : styles.demoBadge}>
+            <Text style={styles.badgeText}>
+              {item.channel === 'EXPO_REAL_PUSH' ? 'REAL PUSH DISPATCH' : 'DEMO SIMULATION'}
+            </Text>
           </View>
-          <View style={styles.statusBadge}>
-            <Send size={11} color="#22c55e" />
-            <Text style={styles.statusBadgeText}>DELIVERED (SIMULATED)</Text>
+          <View style={[
+            styles.statusBadge,
+            item.status === 'ACKNOWLEDGED' && styles.statusAck,
+            item.status === 'FAILED' && styles.statusFailed
+          ]}>
+            {item.status === 'ACKNOWLEDGED' ? (
+              <CheckCheck size={11} color="#86efac" />
+            ) : item.status === 'FAILED' ? (
+              <AlertCircle size={11} color="#fca5a5" />
+            ) : (
+              <Send size={11} color="#93c5fd" />
+            )}
+            <Text style={[
+              styles.statusBadgeText,
+              item.status === 'ACKNOWLEDGED' && styles.statusAckText,
+              item.status === 'FAILED' && styles.statusFailedText
+            ]}>
+              {item.status}
+            </Text>
           </View>
         </View>
         <Text style={styles.timestampText}>
@@ -53,17 +89,41 @@ export const DemoNotificationViewer: React.FC = () => {
 
       <View style={styles.recipientRow}>
         <Text style={styles.recipientLabel}>Recipient:</Text>
-        <Text style={styles.recipientName}>{item.recipient_name}</Text>
-        <Text style={styles.recipientPhone}>({item.recipient_phone_masked})</Text>
+        <Text style={styles.recipientName}>{item.recipient_name || 'Responder'}</Text>
+        {item.recipient_phone_masked ? (
+          <Text style={styles.recipientPhone}>({item.recipient_phone_masked})</Text>
+        ) : item.recipient_token_masked ? (
+          <Text style={styles.recipientPhone}>({item.recipient_token_masked})</Text>
+        ) : null}
       </View>
 
-      <View style={styles.messageBox}>
-        <Text style={styles.messageText}>{item.formatted_message}</Text>
-      </View>
+      {item.formatted_message ? (
+        <View style={styles.messageBox}>
+          <Text style={styles.messageText}>{item.formatted_message}</Text>
+        </View>
+      ) : (
+        <View style={styles.messageBox}>
+          <Text style={styles.pushTitleText}>{item.push_title}</Text>
+          <Text style={styles.messageText}>{item.push_body}</Text>
+        </View>
+      )}
+
+      {item.error_reason && (
+        <View style={styles.errorBox}>
+          <Text style={styles.errorText}>Error: {item.error_reason}</Text>
+        </View>
+      )}
 
       <View style={styles.cardFooter}>
         <Text style={styles.eventIdText}>Ref: {item.event_id}</Text>
-        <Text style={styles.channelText}>Channel: {item.channel}</Text>
+        {item.status !== 'ACKNOWLEDGED' && (
+          <TouchableOpacity
+            style={styles.ackBtn}
+            onPress={() => handleAcknowledge(item.receipt_id)}
+          >
+            <Text style={styles.ackBtnText}>Acknowledge</Text>
+          </TouchableOpacity>
+        )}
       </View>
     </View>
   );
@@ -73,8 +133,8 @@ export const DemoNotificationViewer: React.FC = () => {
       {/* Header */}
       <View style={styles.header}>
         <View>
-          <Text style={styles.headerTitle}>Demo Alert Stream</Text>
-          <Text style={styles.headerSubtitle}>Judge inspection for simulated SOS alerts</Text>
+          <Text style={styles.headerTitle}>Alert & Push Stream</Text>
+          <Text style={styles.headerSubtitle}>Two-device SOS notification tracking</Text>
         </View>
         <TouchableOpacity style={styles.refreshBtn} onPress={fetchNotifications}>
           <RefreshCw size={16} color="#fff" />
@@ -86,27 +146,27 @@ export const DemoNotificationViewer: React.FC = () => {
       <View style={styles.safetyBox}>
         <ShieldCheck size={16} color="#38bdf8" />
         <Text style={styles.safetyText}>
-          {disclaimer || 'DEMO SIMULATION ONLY: No real SMS carriers or emergency numbers are contacted.'}
+          {disclaimer || 'DEMO / PROTOTYPE: Real push notifications routed to registered test devices.'}
         </Text>
       </View>
 
       {loading ? (
         <View style={styles.centerContainer}>
           <ActivityIndicator size="large" color="#3b82f6" />
-          <Text style={styles.loadingText}>Fetching simulated dispatch receipts...</Text>
+          <Text style={styles.loadingText}>Fetching notification stream...</Text>
         </View>
       ) : notifications.length === 0 ? (
         <View style={styles.emptyContainer}>
           <Bell size={48} color="#475569" />
-          <Text style={styles.emptyTitle}>No Demo Alerts Generated Yet</Text>
+          <Text style={styles.emptyTitle}>No Alerts Dispatched Yet</Text>
           <Text style={styles.emptyText}>
-            Trigger an SOS from the SOS screen to simulate automated emergency notification dispatch.
+            Trigger an SOS from Phone A to observe real push alerts dispatched to Phone B responders.
           </Text>
         </View>
       ) : (
         <FlatList
           data={notifications}
-          keyExtractor={(item) => item.notification_id}
+          keyExtractor={(item) => item.receipt_id}
           renderItem={renderReceiptCard}
           contentContainerStyle={styles.listContent}
           onRefresh={fetchNotifications}
@@ -199,7 +259,13 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     borderRadius: 4
   },
-  demoBadgeText: {
+  pushBadge: {
+    backgroundColor: '#1e3a8a',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4
+  },
+  badgeText: {
     color: '#c7d2fe',
     fontSize: 9,
     fontWeight: '800'
@@ -207,16 +273,28 @@ const styles = StyleSheet.create({
   statusBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#064e3b',
+    backgroundColor: '#1e293b',
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 4,
     gap: 4
   },
+  statusAck: {
+    backgroundColor: '#064e3b'
+  },
+  statusFailed: {
+    backgroundColor: '#450a0a'
+  },
   statusBadgeText: {
-    color: '#86efac',
+    color: '#93c5fd',
     fontSize: 9,
     fontWeight: '700'
+  },
+  statusAckText: {
+    color: '#86efac'
+  },
+  statusFailedText: {
+    color: '#fca5a5'
   },
   timestampText: {
     color: '#64748b',
@@ -240,7 +318,7 @@ const styles = StyleSheet.create({
   },
   recipientPhone: {
     color: '#60a5fa',
-    fontSize: 12,
+    fontSize: 11,
     fontFamily: 'monospace'
   },
   messageBox: {
@@ -251,11 +329,27 @@ const styles = StyleSheet.create({
     borderLeftColor: '#ef4444',
     marginBottom: 8
   },
+  pushTitleText: {
+    color: '#fca5a5',
+    fontSize: 12,
+    fontWeight: '700',
+    marginBottom: 4
+  },
   messageText: {
     color: '#cbd5e1',
     fontSize: 11,
     lineHeight: 16,
     fontFamily: 'monospace'
+  },
+  errorBox: {
+    backgroundColor: '#450a0a',
+    padding: 6,
+    borderRadius: 4,
+    marginBottom: 8
+  },
+  errorText: {
+    color: '#fca5a5',
+    fontSize: 10
   },
   cardFooter: {
     flexDirection: 'row',
@@ -267,9 +361,16 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontFamily: 'monospace'
   },
-  channelText: {
-    color: '#64748b',
-    fontSize: 10
+  ackBtn: {
+    backgroundColor: '#1e3a8a',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 4
+  },
+  ackBtnText: {
+    color: '#93c5fd',
+    fontSize: 10,
+    fontWeight: '700'
   },
   centerContainer: {
     flex: 1,

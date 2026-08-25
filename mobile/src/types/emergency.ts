@@ -1,5 +1,5 @@
 /**
- * PRITHVI WATCH — Mobile Emergency & SOS Types
+ * PRITHVI WATCH — Mobile Emergency & SOS Types (Phase 2: Multi-Device Real Push)
  */
 
 export type RelationshipType =
@@ -43,17 +43,32 @@ export interface EmergencyContactUpdatePayload {
   is_primary?: boolean;
 }
 
+export interface DeviceTokenRegisterPayload {
+  device_id: string;
+  push_token: string;
+  platform: string;
+  phone_number?: string;
+  responder_name?: string;
+}
+
 export interface NotificationReceipt {
-  notification_id: string;
+  receipt_id: string;
   event_id: string;
-  recipient_name: string;
-  recipient_phone_masked: string;
+  recipient_name?: string;
+  recipient_phone_masked?: string;
+  recipient_token_masked?: string;
   channel: string;
   is_demo: boolean;
-  status: string;
+  status: 'PENDING' | 'SENT' | 'DELIVERED' | 'FAILED' | 'ACKNOWLEDGED';
+  ticket_id?: string;
   timestamp: string;
-  formatted_message: string;
-  disclaimer: string;
+  formatted_message?: string;
+  push_title?: string;
+  push_body?: string;
+  disclaimer?: string;
+  error_reason?: string;
+  acknowledged_at?: string;
+  acknowledged_by_device?: string;
 }
 
 export interface SOSEvent {
@@ -74,6 +89,7 @@ export interface SOSEvent {
   resolved_at?: string | null;
   cancellation_reason?: string | null;
   notified_contacts_count: number;
+  real_push_dispatched_count?: number;
   notification_receipts: NotificationReceipt[];
   is_duplicate_suppressed: boolean;
 }

@@ -12,10 +12,11 @@ import {
   Switch,
   ScrollView
 } from 'react-native';
-import { UserPlus, Phone, ShieldCheck, Trash2, Edit3, Lock, Users, AlertCircle } from 'lucide-react-native';
+import { UserPlus, Phone, ShieldCheck, Trash2, Edit3, Lock, Users, AlertCircle, BellRing, Smartphone } from 'lucide-react-native';
 import { EmergencyContact, RelationshipType } from '../types/emergency';
 import { emergencyApi } from '../services/api';
 import { getOrCreateDeviceId } from '../services/storage';
+import { registerForPushNotificationsAsync } from '../services/notifications';
 
 const RELATIONSHIPS: RelationshipType[] = [
   'Family',
@@ -36,6 +37,8 @@ export const EmergencyContactsScreen: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [deviceId, setDeviceId] = useState<string>('');
   const [maskData, setMaskData] = useState<boolean>(false);
+  const [pushToken, setPushToken] = useState<string | null>(null);
+  const [registeringPush, setRegisteringPush] = useState<boolean>(false);
 
   // Modal State
   const [modalVisible, setModalVisible] = useState<boolean>(false);
@@ -58,10 +61,35 @@ export const EmergencyContactsScreen: React.FC = () => {
       setDeviceId(devId);
       const data = await emergencyApi.listContacts(devId, maskData);
       setContacts(data);
+
+      const registeredTokens = await emergencyApi.listRegisteredDevices(devId);
+      if (registeredTokens.length > 0) {
+        setPushToken(registeredTokens[0].push_token);
+      }
     } catch (e: any) {
       Alert.alert('Connection Error', e.message || 'Unable to connect to emergency server.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleEnablePushReceiver = async () => {
+    setRegisteringPush(true);
+    try {
+      const token = await registerForPushNotificationsAsync();
+      if (token) {
+        setPushToken(token);
+        Alert.alert(
+          'Push Receiver Active',
+          'This device is now registered to receive real emergency SOS push notifications.'
+        );
+      } else {
+        Alert.alert('Permission Required', 'Notification permissions were not granted.');
+      }
+    } catch (e: any) {
+      Alert.alert('Registration Error', e.message || 'Could not register push token.');
+    } finally {
+      setRegisteringPush(false);
     }
   };
 
@@ -206,6 +234,36 @@ export const EmergencyContactsScreen: React.FC = () => {
           <UserPlus size={18} color="#fff" />
           <Text style={styles.addBtnText}>Add</Text>
         </TouchableOpacity>
+      </View>
+
+      {/* Responder Push Receiver Status Card */}
+      <View style={styles.responderCard}>
+        <View style={styles.responderCardLeft}>
+          <Smartphone size={18} color={pushToken ? '#22c55e' : '#f59e0b'} />
+          <View>
+            <Text style={styles.responderCardTitle}>
+              {pushToken ? 'RESPONDER PUSH ACTIVE' : 'ENABLE RESPONDER PUSH'}
+            </Text>
+            <Text style={styles.responderCardSub}>
+              {pushToken
+                ? 'This device is ready to receive real SOS push notifications.'
+                : 'Register device token to receive real push alerts as a responder.'}
+            </Text>
+          </View>
+        </View>
+        {!pushToken && (
+          <TouchableOpacity
+            style={styles.enablePushBtn}
+            onPress={handleEnablePushReceiver}
+            disabled={registeringPush}
+          >
+            {registeringPush ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <Text style={styles.enablePushBtnText}>Activate</Text>
+            )}
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Privacy masking toggle */}
@@ -373,6 +431,44 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: '600',
     fontSize: 13
+  },
+  responderCard: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#082f49',
+    padding: 10,
+    borderRadius: 8,
+    marginTop: 10,
+    borderWidth: 1,
+    borderColor: '#0284c7'
+  },
+  responderCardLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flex: 1
+  },
+  responderCardTitle: {
+    color: '#38bdf8',
+    fontSize: 11,
+    fontWeight: '700'
+  },
+  responderCardSub: {
+    color: '#cbd5e1',
+    fontSize: 10,
+    marginTop: 1
+  },
+  enablePushBtn: {
+    backgroundColor: '#0284c7',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 6
+  },
+  enablePushBtnText: {
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: '700'
   },
   privacyRow: {
     flexDirection: 'row',

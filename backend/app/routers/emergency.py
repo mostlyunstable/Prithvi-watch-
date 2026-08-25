@@ -1,11 +1,12 @@
 """
-PRITHVI WATCH — Emergency & SOS API Router.
+PRITHVI WATCH — Emergency & SOS API Router (Phase 2: Multi-Device Real Push).
 
 Exposes REST endpoints for:
-- Emergency Contacts CRUD
-- SOS Broadcast / Trigger & Duplicate Prevention
-- SOS Event Status & Cancellation
-- Demo Notification Receipts
+1. Emergency Contacts CRUD
+2. Device Push Token Registration & Management (Phone B)
+3. Multi-Device SOS Triggering (Phone A -> SOS -> Backend -> Phone B Push)
+4. Push Notification Acknowledgment & Status Inspection
+5. Demo Notification Receipts Stream
 """
 
 from typing import List, Optional
@@ -15,6 +16,7 @@ from app.services.emergency import (
     emergency_service,
     EmergencyContactCreate,
     EmergencyContactUpdate,
+    DeviceTokenRegisterRequest,
     SOSEventCreate
 )
 from app.services.notifications import demo_notification_provider
@@ -22,7 +24,10 @@ from app.services.notifications import demo_notification_provider
 router = APIRouter(prefix="/api/emergency", tags=["Emergency / SOS"])
 
 
-# 1. EMERGENCY CONTACTS
+# ============================================================================
+# 1. EMERGENCY CONTACTS CRUD
+# ============================================================================
+
 @router.get("/contacts", response_model=List[dict])
 def list_contacts(
     device_id: str = Query(..., min_length=3, max_length=64, description="Client or device ID"),
@@ -69,14 +74,49 @@ def delete_contact(
     return {"status": "success", "message": f"Contact '{contact_id}' deleted."}
 
 
-# 2. SOS BROADCASTS
+# ============================================================================
+# 2. DEVICE PUSH TOKEN REGISTRATION (PHONE B)
+# ============================================================================
+
+@router.post("/devices/register", status_code=status.HTTP_201_CREATED)
+def register_device_push_token(payload: DeviceTokenRegisterRequest):
+    """
+    Register or update an Expo push token for Phone B (Responder device).
+    Associates the push token with device ID and optional responder phone profile.
+    """
+    return emergency_service.register_device_token(payload)
+
+
+@router.get("/devices", response_model=List[dict])
+def list_registered_devices(device_id: Optional[str] = Query(None)):
+    """List registered push devices and tokens."""
+    return emergency_service.get_registered_tokens(device_id=device_id)
+
+
+@router.delete("/devices/{push_token}")
+def unregister_device_push_token(push_token: str):
+    """Deactivate/unregister a push token."""
+    success = emergency_service.unregister_token(push_token)
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Push token not found."
+        )
+    return {"status": "success", "message": "Push token deactivated."}
+
+
+# ============================================================================
+# 3. MULTI-DEVICE SOS BROADCASTS (PHONE A -> BACKEND -> PHONE B)
+# ============================================================================
+
 @router.post("/sos", status_code=status.HTTP_201_CREATED)
 def trigger_sos(payload: SOSEventCreate):
     """
-    Trigger an emergency SOS event.
+    Trigger an emergency SOS event from Phone A.
     - Validates GPS coordinates
-    - Rate-limits and prevents rapid duplicates within cooldown window
-    - Dispatches simulated demo notifications to registered contacts
+    - Rate-limits and prevents rapid duplicates
+    - Dispatches REAL push notifications to registered Phone B devices
+    - Dispatches in-app demo receipts
     - Persists SOS event
     """
     if abs(payload.latitude) > 90.0 or abs(payload.longitude) > 180.0:
@@ -89,7 +129,7 @@ def trigger_sos(payload: SOSEventCreate):
 
 @router.get("/sos/{event_id}")
 def get_sos_status(event_id: str):
-    """Retrieve details and activation status of an SOS event."""
+    """Retrieve details, activation state, and notification receipts of an SOS event."""
     event = emergency_service.get_sos_event(event_id)
     if not event:
         raise HTTPException(
@@ -104,7 +144,7 @@ def cancel_sos(
     event_id: str,
     reason: str = Query("User cancelled via mobile app", max_length=200)
 ):
-    """Cancel an active SOS event."""
+    """Cancel / stand down an active SOS event."""
     cancelled = emergency_service.cancel_sos(event_id=event_id, reason=reason)
     if not cancelled:
         raise HTTPException(
@@ -118,12 +158,33 @@ def cancel_sos(
     }
 
 
-# 3. DEMO NOTIFICATIONS VIEWER
+# ============================================================================
+# 4. NOTIFICATION ACKNOWLEDGMENT & STATUS TRACKING (PHONE B)
+# ============================================================================
+
+@router.post("/notifications/{receipt_id}/ack")
+def acknowledge_push_notification(
+    receipt_id: str,
+    device_id: Optional[str] = Query(None, description="Responder device acknowledging receipt")
+):
+    """Called by Phone B when an emergency push notification is received/opened."""
+    receipt = emergency_service.acknowledge_notification(receipt_id, responder_device_id=device_id)
+    if not receipt:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Notification receipt '{receipt_id}' not found."
+        )
+    return {
+        "status": "acknowledged",
+        "message": f"Receipt '{receipt_id}' marked as ACKNOWLEDGED.",
+        "receipt": receipt
+    }
+
+
 @router.get("/notifications/demo")
 def get_demo_notifications(limit: int = Query(20, ge=1, le=100)):
     """
-    Inspect recently simulated demo notifications.
-    Includes explicit safety disclaimers for demo and judging review.
+    Inspect recently simulated demo notifications with explicit safety disclaimers.
     """
     notifications = demo_notification_provider.get_recent_notifications(limit=limit)
     return {

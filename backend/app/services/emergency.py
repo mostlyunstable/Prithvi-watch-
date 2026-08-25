@@ -1,9 +1,13 @@
 """
-PRITHVI WATCH — Emergency & SOS Service.
+PRITHVI WATCH — Emergency & SOS Service (Phase 2: Multi-Device Real Push).
 
-Provides contact management, SOS event lifecycle, rate-limiting / deduplication,
-and demo notification triggering.
-Strictly isolated from the ML flood and landslide risk engine.
+Handles:
+1. Emergency Contacts CRUD and phone number validation.
+2. Device Push Token Registration & Association with Emergency Profiles.
+3. Multi-Device SOS Triggering (Phone A -> SOS -> Backend -> Phone B Push).
+4. Duplicate SOS suppression and duplicate push prevention per event.
+5. Notification status lifecycle (PENDING -> SENT -> DELIVERED / FAILED -> ACKNOWLEDGED).
+6. Data Privacy: contact phone numbers are never included in push payloads.
 """
 
 import re
@@ -13,15 +17,20 @@ import os
 import threading
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Set
 from pydantic import BaseModel, Field, field_validator
 
 from app.config import DATA_DIR
-from app.services.notifications import demo_notification_provider
+from app.services.notifications import (
+    demo_notification_provider,
+    expo_push_provider,
+    EXPO_TOKEN_REGEX
+)
 
 EMERGENCY_DIR = DATA_DIR / "emergency"
 CONTACTS_FILE = EMERGENCY_DIR / "contacts.json"
 SOS_EVENTS_FILE = EMERGENCY_DIR / "sos_events.json"
+DEVICE_TOKENS_FILE = EMERGENCY_DIR / "device_tokens.json"
 
 # Regex for validating international E.164 (+CC followed by 7-15 digits) or 10-digit national Indian mobile numbers
 PHONE_REGEX = re.compile(r"^(\+[1-9]\d{6,14}|[6-9]\d{9})$")
@@ -32,8 +41,12 @@ VALID_RELATIONSHIPS = {
 }
 
 
+# ============================================================================
+# PYDANTIC SCHEMAS
+# ============================================================================
+
 class EmergencyContactCreate(BaseModel):
-    device_id: str = Field(..., min_length=3, max_length=64, description="Unique client or device identifier")
+    device_id: str = Field(..., min_length=3, max_length=64, description="Client or device identifier")
     name: str = Field(..., min_length=2, max_length=100, description="Full name of emergency contact")
     phone_number: str = Field(..., description="Phone number (E.164 or 10-digit mobile)")
     relationship: str = Field("Family", description="Relationship type")
@@ -73,6 +86,32 @@ class EmergencyContactUpdate(BaseModel):
         return cleaned
 
 
+class DeviceTokenRegisterRequest(BaseModel):
+    device_id: str = Field(..., min_length=3, max_length=64, description="Unique device identifier")
+    push_token: str = Field(..., description="Expo Push Token e.g. ExponentPushToken[...] or ExpoPushToken[...]")
+    platform: str = Field("unknown", description="os platform: ios, android, web")
+    phone_number: Optional[str] = Field(None, description="Optional responder phone number to link profile")
+    responder_name: Optional[str] = Field(None, max_length=100, description="Optional responder name")
+
+    @field_validator("push_token")
+    @classmethod
+    def validate_push_token(cls, v: str) -> str:
+        token = v.strip()
+        if not expo_push_provider.validate_token(token) and not token.startswith("ExponentPushToken") and not token.startswith("ExpoPushToken"):
+            raise ValueError(f"Invalid Expo push token format: '{v}'")
+        return token
+
+    @field_validator("phone_number")
+    @classmethod
+    def validate_phone(cls, v: Optional[str]) -> Optional[str]:
+        if not v:
+            return None
+        cleaned = re.sub(r"[\s\-\(\)]", "", v)
+        if not PHONE_REGEX.match(cleaned):
+            raise ValueError(f"Invalid phone number format: '{v}'.")
+        return cleaned
+
+
 class SOSEventCreate(BaseModel):
     device_id: str = Field(..., min_length=3, max_length=64)
     latitude: float = Field(..., ge=-90.0, le=90.0, description="Current GPS latitude")
@@ -86,9 +125,13 @@ class SOSEventCreate(BaseModel):
     user_note: Optional[str] = Field(None, max_length=500)
 
 
+# ============================================================================
+# EMERGENCY SERVICE
+# ============================================================================
+
 class EmergencyService:
     """
-    Thread-safe service for managing emergency contacts and SOS broadcasts.
+    Thread-safe service managing contacts, device tokens, and multi-device SOS broadcasts.
     """
     def __init__(self):
         self._lock = threading.RLock()
@@ -103,36 +146,24 @@ class EmergencyService:
             if not SOS_EVENTS_FILE.exists():
                 with open(SOS_EVENTS_FILE, "w") as f:
                     json.dump({"events": []}, f, indent=2)
+            if not DEVICE_TOKENS_FILE.exists():
+                with open(DEVICE_TOKENS_FILE, "w") as f:
+                    json.dump({"tokens": []}, f, indent=2)
 
-    def _read_contacts(self) -> List[Dict[str, Any]]:
+    def _read_file(self, path: Path, key: str) -> List[Dict[str, Any]]:
         with self._lock:
             try:
-                with open(CONTACTS_FILE, "r") as f:
-                    return json.load(f).get("contacts", [])
+                with open(path, "r") as f:
+                    return json.load(f).get(key, [])
             except Exception:
                 return []
 
-    def _write_contacts(self, contacts: List[Dict[str, Any]]):
+    def _write_file(self, path: Path, key: str, data: List[Dict[str, Any]]):
         with self._lock:
-            temp_file = CONTACTS_FILE.with_suffix(".tmp")
+            temp_file = path.with_suffix(".tmp")
             with open(temp_file, "w") as f:
-                json.dump({"contacts": contacts}, f, indent=2)
-            os.replace(temp_file, CONTACTS_FILE)
-
-    def _read_events(self) -> List[Dict[str, Any]]:
-        with self._lock:
-            try:
-                with open(SOS_EVENTS_FILE, "r") as f:
-                    return json.load(f).get("events", [])
-            except Exception:
-                return []
-
-    def _write_events(self, events: List[Dict[str, Any]]):
-        with self._lock:
-            temp_file = SOS_EVENTS_FILE.with_suffix(".tmp")
-            with open(temp_file, "w") as f:
-                json.dump({"events": events}, f, indent=2)
-            os.replace(temp_file, SOS_EVENTS_FILE)
+                json.dump({key: data}, f, indent=2)
+            os.replace(temp_file, path)
 
     @staticmethod
     def mask_phone(phone: str) -> str:
@@ -141,14 +172,12 @@ class EmergencyService:
             return cleaned[:3] + "****" + cleaned[-4:]
         return "***"
 
-    # CONTACT METHODS
+    # 1. CONTACT MANAGEMENT
     def get_contacts(self, device_id: str, mask: bool = False) -> List[Dict[str, Any]]:
-        all_contacts = self._read_contacts()
+        all_contacts = self._read_file(CONTACTS_FILE, "contacts")
         user_contacts = [c for c in all_contacts if c.get("device_id") == device_id]
         if not mask:
             return user_contacts
-        
-        # Return sanitized masked version
         return [
             {
                 **c,
@@ -163,8 +192,7 @@ class EmergencyService:
         contact_id = f"CNT-{uuid.uuid4().hex[:8].upper()}"
 
         with self._lock:
-            contacts = self._read_contacts()
-            # If set as primary, unmark others for this device
+            contacts = self._read_file(CONTACTS_FILE, "contacts")
             if payload.is_primary:
                 for c in contacts:
                     if c.get("device_id") == payload.device_id:
@@ -177,18 +205,18 @@ class EmergencyService:
                 "phone_number": payload.phone_number,
                 "relationship": payload.relationship,
                 "is_primary": payload.is_primary,
-                "is_verified": True, # Registered and validated
+                "is_verified": True,
                 "created_at": now_utc,
                 "updated_at": now_utc
             }
             contacts.append(new_contact)
-            self._write_contacts(contacts)
+            self._write_file(CONTACTS_FILE, "contacts", contacts)
             return new_contact
 
     def update_contact(self, contact_id: str, payload: EmergencyContactUpdate, device_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
         now_utc = datetime.now(timezone.utc).isoformat()
         with self._lock:
-            contacts = self._read_contacts()
+            contacts = self._read_file(CONTACTS_FILE, "contacts")
             target = None
             for c in contacts:
                 if c["id"] == contact_id:
@@ -214,52 +242,148 @@ class EmergencyService:
                 target["is_primary"] = payload.is_primary
 
             target["updated_at"] = now_utc
-            self._write_contacts(contacts)
+            self._write_file(CONTACTS_FILE, "contacts", contacts)
             return target
 
     def delete_contact(self, contact_id: str, device_id: Optional[str] = None) -> bool:
         with self._lock:
-            contacts = self._read_contacts()
+            contacts = self._read_file(CONTACTS_FILE, "contacts")
             initial_len = len(contacts)
             contacts = [
                 c for c in contacts
                 if not (c["id"] == contact_id and (device_id is None or c.get("device_id") == device_id))
             ]
             if len(contacts) < initial_len:
-                self._write_contacts(contacts)
+                self._write_file(CONTACTS_FILE, "contacts", contacts)
                 return True
             return False
 
-    # SOS METHODS
+    # 2. DEVICE TOKEN REGISTRATION (PHONE B)
+    def register_device_token(self, payload: DeviceTokenRegisterRequest) -> Dict[str, Any]:
+        now_utc = datetime.now(timezone.utc).isoformat()
+        with self._lock:
+            tokens = self._read_file(DEVICE_TOKENS_FILE, "tokens")
+            
+            # Deduplication: check if token or device already exists
+            existing = None
+            for t in tokens:
+                if t.get("push_token") == payload.push_token or t.get("device_id") == payload.device_id:
+                    existing = t
+                    break
+
+            if existing:
+                existing["device_id"] = payload.device_id
+                existing["push_token"] = payload.push_token
+                existing["platform"] = payload.platform
+                if payload.phone_number:
+                    existing["phone_number"] = payload.phone_number
+                if payload.responder_name:
+                    existing["responder_name"] = payload.responder_name
+                existing["is_active"] = True
+                existing["updated_at"] = now_utc
+                self._write_file(DEVICE_TOKENS_FILE, "tokens", tokens)
+                return existing
+
+            record_id = f"DEV-{uuid.uuid4().hex[:8].upper()}"
+            new_record = {
+                "id": record_id,
+                "device_id": payload.device_id,
+                "push_token": payload.push_token,
+                "platform": payload.platform,
+                "phone_number": payload.phone_number,
+                "responder_name": payload.responder_name,
+                "is_active": True,
+                "created_at": now_utc,
+                "updated_at": now_utc
+            }
+            tokens.append(new_record)
+            self._write_file(DEVICE_TOKENS_FILE, "tokens", tokens)
+            return new_record
+
+    def get_registered_tokens(self, device_id: Optional[str] = None) -> List[Dict[str, Any]]:
+        tokens = self._read_file(DEVICE_TOKENS_FILE, "tokens")
+        if device_id:
+            return [t for t in tokens if t.get("device_id") == device_id and t.get("is_active", True)]
+        return [t for t in tokens if t.get("is_active", True)]
+
+    def unregister_token(self, push_token: str) -> bool:
+        with self._lock:
+            tokens = self._read_file(DEVICE_TOKENS_FILE, "tokens")
+            for t in tokens:
+                if t.get("push_token") == push_token:
+                    t["is_active"] = False
+                    t["updated_at"] = datetime.now(timezone.utc).isoformat()
+                    self._write_file(DEVICE_TOKENS_FILE, "tokens", tokens)
+                    return True
+            return False
+
+    # 3. SOS TRIGGERING & MULTI-DEVICE DISPATCH (PHONE A -> BACKEND -> PHONE B)
     def trigger_sos(self, payload: SOSEventCreate) -> Dict[str, Any]:
         now_dt = datetime.now(timezone.utc)
         now_utc = now_dt.isoformat()
 
         with self._lock:
-            events = self._read_events()
+            events = self._read_file(SOS_EVENTS_FILE, "events")
 
-            # Duplicate Prevention: Check for recent active SOS from this device within 30 seconds
+            # 1. Duplicate Prevention: Check for recent active SOS from this device within 30 seconds
             recent_threshold = now_dt - timedelta(seconds=30)
             for ev in reversed(events):
                 if ev.get("device_id") == payload.device_id and ev.get("status") == "ACTIVE":
                     ev_time = datetime.fromisoformat(ev["created_at"])
                     if ev_time >= recent_threshold:
-                        # Return existing active event with duplicate flag
                         return {
                             **ev,
                             "is_duplicate_suppressed": True,
-                            "message": "Existing active SOS event within cooldown window. Duplicate suppressed."
+                            "message": "Active SOS already in progress for this device. Duplicate broadcast suppressed."
                         }
 
             event_id = f"SOS-{now_dt.strftime('%Y%m%d')}-{uuid.uuid4().hex[:6].upper()}"
-            
-            # Fetch registered contacts for this device to simulate notification
-            contacts = [c for c in self._read_contacts() if c.get("device_id") == payload.device_id]
 
-            # Dispatch demo notifications
+            # 2. Lookup registered contacts for Phone A
+            contacts = [c for c in self._read_file(CONTACTS_FILE, "contacts") if c.get("device_id") == payload.device_id]
+            contact_phones = {c["phone_number"] for c in contacts if c.get("phone_number")}
+
+            # 3. Lookup registered push tokens for Phone B (responders whose phone matches contacts or active tokens)
+            all_tokens = self.get_registered_tokens()
+            target_push_tokens = []
+            
+            for t in all_tokens:
+                # Disallow sending push back to sender device
+                if t.get("device_id") == payload.device_id:
+                    continue
+                # Match by registered phone number or registered responder
+                if t.get("phone_number") and t.get("phone_number") in contact_phones:
+                    target_push_tokens.append(t)
+                elif not contact_phones:
+                    # In demo mode, if no specific phone matched, broadcast to all other registered responder tokens
+                    target_push_tokens.append(t)
+
+            # 4. Dispatch Notifications with Duplicate Prevention per Event
             notification_receipts = []
+            dispatched_tokens: Set[str] = set()
+
+            # A. Dispatch Real Push to Phone B devices
+            for tok_rec in target_push_tokens:
+                token_str = tok_rec["push_token"]
+                if token_str in dispatched_tokens:
+                    continue
+                dispatched_tokens.add(token_str)
+
+                push_receipt = expo_push_provider.dispatch_alert(
+                    event_id=event_id,
+                    sender_name=payload.sender_name or "Prithvi Watch User",
+                    latitude=payload.latitude,
+                    longitude=payload.longitude,
+                    recipient_token=token_str,
+                    recipient_name=tok_rec.get("responder_name") or "Registered Responder",
+                    message=payload.user_note,
+                    is_demo=(payload.mode == "DEMO")
+                )
+                notification_receipts.append(push_receipt)
+
+            # B. Dispatch In-App Demo Simulation Receipts for registered contacts
             for contact in contacts:
-                receipt = demo_notification_provider.dispatch_alert(
+                demo_receipt = demo_notification_provider.dispatch_alert(
                     event_id=event_id,
                     sender_name=payload.sender_name or "Prithvi Watch User",
                     latitude=payload.latitude,
@@ -269,7 +393,7 @@ class EmergencyService:
                     message=payload.user_note,
                     is_demo=(payload.mode == "DEMO")
                 )
-                notification_receipts.append(receipt)
+                notification_receipts.append(demo_receipt)
 
             sos_event = {
                 "id": event_id,
@@ -288,16 +412,17 @@ class EmergencyService:
                 "updated_at": now_utc,
                 "resolved_at": None,
                 "notified_contacts_count": len(notification_receipts),
+                "real_push_dispatched_count": len(dispatched_tokens),
                 "notification_receipts": notification_receipts,
                 "is_duplicate_suppressed": False
             }
 
             events.append(sos_event)
-            self._write_events(events)
+            self._write_file(SOS_EVENTS_FILE, "events", events)
             return sos_event
 
     def get_sos_event(self, event_id: str) -> Optional[Dict[str, Any]]:
-        events = self._read_events()
+        events = self._read_file(SOS_EVENTS_FILE, "events")
         for ev in events:
             if ev["id"] == event_id:
                 return ev
@@ -306,7 +431,7 @@ class EmergencyService:
     def cancel_sos(self, event_id: str, reason: str = "User cancelled") -> Optional[Dict[str, Any]]:
         now_utc = datetime.now(timezone.utc).isoformat()
         with self._lock:
-            events = self._read_events()
+            events = self._read_file(SOS_EVENTS_FILE, "events")
             target = None
             for ev in events:
                 if ev["id"] == event_id:
@@ -320,8 +445,24 @@ class EmergencyService:
             target["cancellation_reason"] = reason
             target["resolved_at"] = now_utc
             target["updated_at"] = now_utc
-            self._write_events(events)
+            self._write_file(SOS_EVENTS_FILE, "events", events)
             return target
+
+    def acknowledge_notification(self, receipt_id: str, responder_device_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
+        """Allows Phone B to acknowledge receipt of an emergency push notification."""
+        now_utc = datetime.now(timezone.utc).isoformat()
+        with self._lock:
+            events = self._read_file(SOS_EVENTS_FILE, "events")
+            for ev in events:
+                for rcpt in ev.get("notification_receipts", []):
+                    if rcpt.get("receipt_id") == receipt_id:
+                        rcpt["status"] = "ACKNOWLEDGED"
+                        rcpt["acknowledged_at"] = now_utc
+                        rcpt["acknowledged_by_device"] = responder_device_id
+                        self._write_file(SOS_EVENTS_FILE, "events", events)
+                        return rcpt
+            return None
+
 
 # Global emergency service singleton
 emergency_service = EmergencyService()
