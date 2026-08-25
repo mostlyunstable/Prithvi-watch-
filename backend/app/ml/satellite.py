@@ -71,12 +71,20 @@ def _get_sas_token() -> str:
 def _read_pixel_from_cog(signed_url: str, lon: float, lat: float, crs_epsg: int) -> Optional[float]:
     """
     Reads a single pixel from a Cloud-Optimized GeoTIFF via a windowed read.
-    Returns None if reading fails or pixel is NoData.
+    Returns None if reading fails, times out, or pixel is NoData.
     """
     try:
         t = Transformer.from_crs("EPSG:4326", f"EPSG:{crs_epsg}", always_xy=True)
         x, y = t.transform(lon, lat)
-        with rasterio.Env(GDAL_HTTP_TIMEOUT="3", GDAL_HTTP_MAX_RETRY="1", CPL_VSIL_CURL_TIMEOUT="3"):
+        env_options = {
+            "GDAL_HTTP_TIMEOUT": "2",
+            "GDAL_HTTP_MAX_RETRY": "0",
+            "CPL_VSIL_CURL_TIMEOUT": "2",
+            "GDAL_DISABLE_READDIR_ON_OPEN": "EMPTY_DIR",
+            "CPL_CURL_VERBOSE": "NO",
+            "CPL_LOG_ERRORS": "NO"
+        }
+        with rasterio.Env(**env_options):
             with rasterio.open(signed_url) as src:
                 row, col = src.index(x, y)
                 if 0 <= row < src.height and 0 <= col < src.width:
