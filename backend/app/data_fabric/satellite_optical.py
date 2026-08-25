@@ -50,21 +50,21 @@ class SatelliteOpticalProvider(BaseProvider):
 
         self.status = ProviderStatus.DEGRADED
         return {
-            "ndvi": 0.68,
-            "vegetation_health": "DENSE SUB-TROPICAL FOREST",
-            "cloud_cover_pct": 25.0,
-            "acquisition_date": datetime.now(timezone.utc).strftime("%Y-%m-%dT04:30:00Z"),
-            "scene_id": "S2A_MSIL2A_NER_REGIONAL"
+            "ndvi": None,
+            "vegetation_health": "UNOBSERVED (CLOUD / UNAVAILABLE)",
+            "cloud_cover_pct": None,
+            "acquisition_date": None,
+            "scene_id": None
         }
 
     def validate(self, raw_data: Dict[str, Any]) -> bool:
-        return bool(raw_data and "ndvi" in raw_data)
+        return bool(raw_data and raw_data.get("ndvi") is not None)
 
     def normalize(self, raw_data: Dict[str, Any]) -> Dict[str, Any]:
         return {
-            "ndvi": raw_data.get("ndvi", 0.68),
-            "vegetation_health": raw_data.get("vegetation_health", "DENSE SUB-TROPICAL FOREST"),
-            "cloud_cover_pct": raw_data.get("cloud_cover_pct", 25.0),
+            "ndvi": raw_data.get("ndvi"),
+            "vegetation_health": raw_data.get("vegetation_health", "UNOBSERVED"),
+            "cloud_cover_pct": raw_data.get("cloud_cover_pct"),
             "acquisition_date": raw_data.get("acquisition_date"),
             "status": self.status,
             "provider": self.name

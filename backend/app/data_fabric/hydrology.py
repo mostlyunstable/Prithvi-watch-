@@ -43,6 +43,25 @@ class HydrologyProvider(BaseProvider):
         a = np.sin(dlat/2.0)**2 + np.cos(np.radians(lat1))*np.cos(np.radians(lat2))*np.sin(dlon/2.0)**2
         return float(r * 2.0 * np.arctan2(np.sqrt(a), np.sqrt(1.0 - a)))
 
+    def point_to_segment_km(self, plat: float, plon: float, lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+        """Calculates closest distance from point to segment in km."""
+        # Convert to local equirectangular flat plane
+        cos_lat = np.cos(np.radians((lat1 + lat2 + plat) / 3.0))
+        px, py = plon * cos_lat * 111.32, plat * 110.574
+        x1, y1 = lon1 * cos_lat * 111.32, lat1 * 110.574
+        x2, y2 = lon2 * cos_lat * 111.32, lat2 * 110.574
+        
+        dx, dy = x2 - x1, y2 - y1
+        seg_len_sq = dx * dx + dy * dy
+        if seg_len_sq < 1e-9:
+            return float(np.hypot(px - x1, py - y1))
+        
+        # Projection parameter t
+        t = max(0.0, min(1.0, ((px - x1) * dx + (py - y1) * dy) / seg_len_sq))
+        proj_x = x1 + t * dx
+        proj_y = y1 + t * dy
+        return float(np.hypot(px - proj_x, py - proj_y))
+
     def fetch(self, lat: float, lon: float, **kwargs) -> Dict[str, Any]:
         self.last_checked = datetime.now(timezone.utc)
         if not self._cached_rivers:
@@ -61,9 +80,13 @@ class HydrologyProvider(BaseProvider):
         for feat in self._cached_rivers:
             coords = feat.get("geometry", {}).get("coordinates", [])
             props = feat.get("properties", {})
-            for pt in coords:
-                if len(pt) >= 2:
-                    d = self.haversine_km(lat, lon, pt[1], pt[0])
+            if len(coords) < 2:
+                continue
+            for i in range(len(coords) - 1):
+                pt1 = coords[i]
+                pt2 = coords[i + 1]
+                if len(pt1) >= 2 and len(pt2) >= 2:
+                    d = self.point_to_segment_km(lat, lon, pt1[1], pt1[0], pt2[1], pt2[0])
                     if d < min_dist_km:
                         min_dist_km = d
                         nearest_river_name = props.get("name", nearest_river_name)

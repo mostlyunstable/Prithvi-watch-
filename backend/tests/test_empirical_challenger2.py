@@ -217,6 +217,11 @@ class TestNetworkIsolationAndFallbacks(unittest.TestCase):
         Verify system completes prediction with HTTP 200, sets DEGRADED status,
         applies neutral imputations, and does not throw uncaught 500 errors.
         """
+        from app.ml.satellite import _sar_coord_cache
+        from app.ml.weather import _weather_cache
+        _sar_coord_cache.clear()
+        _weather_cache.clear()
+
         with patch("requests.Session.get", side_effect=requests.exceptions.ConnectionError("Network is down")), \
              patch("requests.Session.post", side_effect=requests.exceptions.ConnectionError("Network is down")):
             

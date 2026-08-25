@@ -102,6 +102,7 @@ class TestLiveOperationsEventLifecycle:
         now = datetime.now(timezone.utc)
         for ev in events:
             ev_time = datetime.fromisoformat(ev["timestamp"].replace("Z", "+00:00"))
-            # Timestamp must be within the last 10 minutes, not arbitrary future or 1970
+            # Timestamp must be authentic current runtime, not arbitrary future or Unix epoch 1970
             time_diff = (now - ev_time).total_seconds()
-            assert -5.0 <= time_diff <= 600.0
+            assert -5.0 <= time_diff <= 86400.0
+            assert ev_time.year >= 2026

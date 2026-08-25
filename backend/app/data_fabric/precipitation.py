@@ -67,13 +67,14 @@ class PrecipitationProvider(BaseProvider):
         return {
             "rainfall_1h_mm": 0.0,
             "rainfall_3h_mm": 0.0,
-            "rainfall_6h_mm": 1.0,
-            "rainfall_24h_mm": 5.0,
-            "rainfall_72h_mm": 15.0,
-            "rainfall_7d_mm": 35.0,
-            "rainfall_30d_mm": 120.0,
-            "monthly_climatology_mm": 300.0,
+            "rainfall_6h_mm": 0.0,
+            "rainfall_24h_mm": 0.0,
+            "rainfall_72h_mm": 0.0,
+            "rainfall_7d_mm": 0.0,
+            "rainfall_30d_mm": 0.0,
+            "monthly_climatology_mm": self.ner_monthly_climatology_mm.get(datetime.now(timezone.utc).month, 300.0),
             "rainfall_anomaly_pct": 0.0,
+            "is_imputed": True,
             "observation_timestamp": datetime.now(timezone.utc).isoformat()
         }
 
@@ -89,9 +90,10 @@ class PrecipitationProvider(BaseProvider):
             "rainfall_6h_mm": round(float(raw_data.get("rainfall_6h_mm", 0.0)), 1),
             "rainfall_24h_mm": round(float(raw_data.get("rainfall_24h_mm", 0.0)), 1),
             "rainfall_72h_mm": round(float(raw_data.get("rainfall_72h_mm", 0.0)), 1),
-            "rainfall_7d_mm": round(float(raw_data.get("rainfall_7d_mm", 35.0)), 1),
-            "rainfall_30d_mm": round(float(raw_data.get("rainfall_30d_mm", 120.0)), 1),
+            "rainfall_7d_mm": round(float(raw_data.get("rainfall_7d_mm", 0.0)), 1),
+            "rainfall_30d_mm": round(float(raw_data.get("rainfall_30d_mm", 0.0)), 1),
             "rainfall_anomaly_pct": raw_data.get("rainfall_anomaly_pct", 0.0),
+            "is_imputed": raw_data.get("is_imputed", False),
             "status": self.status,
             "provider": self.name,
             "observation_time": raw_data.get("observation_timestamp")

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import type { PredictionResponse } from '../services/api';
-import { fetchFabricEnrich, type FabricEnrichResponse } from '../services/api';
+import { fetchFabricEnrich, fetchFloodAssessment, type FabricEnrichResponse, type FloodAssessmentResponse } from '../services/api';
 import { safeToFixed, formatHistoricalDate, formatPercent } from '../utils/geoAnalytics';
 
 interface RiskIntelligencePanelProps {
@@ -20,14 +20,19 @@ export const RiskIntelligencePanel: React.FC<RiskIntelligencePanelProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<'model' | 'fabric'>('model');
   const [fabricData, setFabricData] = useState<FabricEnrichResponse | null>(null);
+  const [floodData, setFloodData] = useState<FloodAssessmentResponse | null>(null);
   const [isFabricLoading, setIsFabricLoading] = useState<boolean>(false);
 
   useEffect(() => {
     if (prediction && prediction.latitude && prediction.longitude) {
       setIsFabricLoading(true);
-      fetchFabricEnrich(prediction.latitude, prediction.longitude)
-        .then((data) => {
-          setFabricData(data);
+      Promise.all([
+        fetchFabricEnrich(prediction.latitude, prediction.longitude),
+        fetchFloodAssessment(prediction.latitude, prediction.longitude)
+      ])
+        .then(([fab, fld]) => {
+          setFabricData(fab);
+          setFloodData(fld);
           setIsFabricLoading(false);
         })
         .catch(() => {
@@ -35,6 +40,7 @@ export const RiskIntelligencePanel: React.FC<RiskIntelligencePanelProps> = ({
         });
     } else {
       setFabricData(null);
+      setFloodData(null);
     }
   }, [prediction?.latitude, prediction?.longitude]);
 
@@ -449,6 +455,67 @@ export const RiskIntelligencePanel: React.FC<RiskIntelligencePanelProps> = ({
                     </span>
                   </div>
                 </div>
+
+                {/* Flood Risk Intelligence Card */}
+                {floodData && (
+                  <div className="p-3.5 bg-blue-950/40 border border-blue-600/70 rounded-lg space-y-2.5">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <span className="text-[9px] font-mono font-bold text-blue-400 uppercase tracking-wider block">
+                          Hydrologic & Flood Assessment
+                        </span>
+                        <div className="text-xs text-slate-300 font-medium leading-tight mt-0.5">
+                          {floodData.flood_susceptibility?.nearest_river} ({floodData.flood_susceptibility?.distance_to_river_km} km)
+                        </div>
+                      </div>
+                      <div className="flex flex-col items-end space-y-1">
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider ${
+                          floodData.assessment?.risk_level === 'CRITICAL' ? 'bg-red-600 text-white' :
+                          floodData.assessment?.risk_level === 'HIGH' ? 'bg-orange-500 text-white' :
+                          floodData.assessment?.risk_level === 'MODERATE' ? 'bg-amber-500 text-slate-950' :
+                          'bg-emerald-600 text-white'
+                        }`}>
+                          {floodData.assessment?.risk_level} FLOOD RISK
+                        </span>
+                        <span className="text-[8px] font-mono text-cyan-300">
+                          ● {floodData.data_confidence?.confidence_level}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex justify-between items-baseline pt-1 border-t border-blue-800/50">
+                      <span className="text-[10px] text-slate-400 uppercase font-semibold">Flood Inundation Probability</span>
+                      <span className="text-xl font-black text-white font-mono">{formatPercent(floodData.assessment?.flood_probability, 1)}</span>
+                    </div>
+
+                    {/* Current Flood Evidence (Sentinel-1 Radar) */}
+                    <div className="p-2 bg-slate-900/90 rounded border border-blue-800/40 text-xs space-y-1">
+                      <div className="flex justify-between items-center text-[10px]">
+                        <span className="font-bold text-cyan-300">Current Radar Evidence:</span>
+                        <span className={`font-mono font-bold ${floodData.current_flood_evidence?.detected ? 'text-red-400' : 'text-emerald-400'}`}>
+                          {floodData.current_flood_evidence?.evidence_level}
+                        </span>
+                      </div>
+                      <p className="text-[10px] text-slate-300 leading-snug">
+                        {floodData.current_flood_evidence?.detection_label}
+                      </p>
+                    </div>
+
+                    {/* Feature Contributions & Explainability */}
+                    <div className="space-y-1 text-[10px]">
+                      <span className="text-slate-400 font-bold uppercase tracking-wider block">Key Physical Drivers & Weights:</span>
+                      {floodData.feature_contributions?.slice(0, 4).map((fc, idx) => (
+                        <div key={idx} className="flex justify-between items-center py-0.5 border-b border-slate-800/80">
+                          <span className="text-slate-300">{fc.feature}:</span>
+                          <div className="flex items-center space-x-1.5 font-mono">
+                            <span className="text-slate-400">{fc.value}</span>
+                            <span className="text-cyan-400 font-bold">({fc.contribution_pct}%)</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {/* 2. Topography & Morphology (SRTM 30m) */}
                 <div className="bg-slate-850 p-3 rounded-lg border border-slate-800 space-y-2">

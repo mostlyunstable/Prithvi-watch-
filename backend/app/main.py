@@ -711,4 +711,37 @@ def get_fabric_roads():
     return {"type": "FeatureCollection", "features": []}
 
 
+# ============================================================================
+# DETERMINISTIC FLOOD DETECTION & RISK PIPELINE
+# ============================================================================
+
+from app.ml.flood_engine import flood_engine
+
+class FloodAssessmentRequest(BaseModel):
+    latitude: float = Field(..., ge=-90.0, le=90.0, description="Target WGS84 Latitude")
+    longitude: float = Field(..., ge=-180.0, le=180.0, description="Target WGS84 Longitude")
+
+@app.get("/api/floods/assess")
+def assess_flood_risk_get(
+    lat: float = Query(..., ge=-90.0, le=90.0, description="WGS84 Latitude"),
+    lon: float = Query(..., ge=-180.0, le=180.0, description="WGS84 Longitude")
+):
+    """
+    Evaluates coordinate-specific deterministic flood risk and inundation hazard:
+    Topographic slope & elevation, HydroSHEDS river proximity, multi-temporal precipitation,
+    Sentinel-1 radar surface water reflection, and historical flood recurrence.
+    """
+    metrics_store["requests_total"] += 1
+    return flood_engine.assess_coordinate(lat, lon)
+
+@app.post("/api/floods/assess")
+def assess_flood_risk_post(req: FloodAssessmentRequest):
+    """
+    POST variant for evaluating coordinate-specific deterministic flood risk.
+    """
+    metrics_store["requests_total"] += 1
+    return flood_engine.assess_coordinate(req.latitude, req.longitude)
+
+
+
 

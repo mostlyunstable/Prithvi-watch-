@@ -480,5 +480,81 @@ export const fetchFabricRoads = async (): Promise<any> => {
   return response.json();
 };
 
+export interface FloodFeatureContribution {
+  feature: string;
+  value: string;
+  contribution_pct: number;
+  direction: string;
+  source: string;
+  description: string;
+}
+
+export interface FloodAssessmentResponse {
+  latitude: number;
+  longitude: number;
+  timestamp: string;
+  engine_version: string;
+  geographic_context: {
+    in_ner_domain: boolean;
+    elevation_m: number;
+    slope_deg: number;
+    plan_curvature: number;
+  };
+  assessment: {
+    flood_probability: number;
+    risk_level: 'LOW' | 'MODERATE' | 'HIGH' | 'CRITICAL';
+    advisory: string;
+  };
+  flood_susceptibility: {
+    score: number;
+    nearest_river: string;
+    distance_to_river_km: number;
+    distance_to_river_m: number;
+    basin: string;
+    strahler_order: number;
+    mean_annual_discharge_m3s: number;
+  };
+  meteorological_forcing: {
+    score: number;
+    rainfall_1h_mm?: number | null;
+    rainfall_6h_mm?: number | null;
+    rainfall_24h_mm?: number | null;
+    rainfall_72h_mm?: number | null;
+    rainfall_7d_mm?: number | null;
+    rainfall_30d_mm?: number | null;
+    rainfall_anomaly_pct?: number | null;
+    status: string;
+  };
+  current_flood_evidence: {
+    detected: boolean;
+    evidence_level: string;
+    detection_label: string;
+    sar_observed: boolean;
+    sar_vv?: number | null;
+    sar_vh?: number | null;
+    acquisition_date?: string | null;
+  };
+  historical_recurrence: {
+    distance_km: number;
+    location?: string | null;
+    year?: number | null;
+  };
+  data_confidence: {
+    confidence_level: 'HIGH_CONFIDENCE' | 'DEGRADED_CONFIDENCE' | 'INSUFFICIENT_DATA';
+    completeness_pct: number;
+    sources_available: number;
+    sources_total: number;
+    status_flags: Record<string, string>;
+  };
+  feature_contributions: FloodFeatureContribution[];
+}
+
+export const fetchFloodAssessment = async (lat: number, lon: number): Promise<FloodAssessmentResponse> => {
+  const response = await fetch(`${API_BASE_URL}/floods/assess?lat=${lat}&lon=${lon}`);
+  if (!response.ok) throw new Error(`Flood assessment failed: ${response.statusText}`);
+  return response.json();
+};
+
+
 
 
