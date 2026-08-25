@@ -3,7 +3,7 @@ import json
 import uuid
 import math
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import Optional, List, Dict, Any
 from contextlib import asynccontextmanager
@@ -17,6 +17,12 @@ from app.config import DATA_DIR, MODELS_DIR
 from app.ml.features import extract_real_features
 from app.ml.model import risk_model
 from app.ml.map_generator import generate_risk_geojson
+from app.ml.risk_snapshots import (
+    generate_risk_velocity_geojson,
+    snapshot_store,
+    calculate_velocity_properties,
+    RiskSnapshot
+)
 
 # Configure structured application logger
 logging.basicConfig(
@@ -219,11 +225,32 @@ def run_prediction(req: PredictionRequest):
         f"prob={base_prob:.4f}, risk={prediction_result['risk_level']}, data_quality={data_quality}"
     )
 
+    # Record snapshot in persistent store & calculate risk velocity
+    snap_quality = "DEGRADED" if (data_quality.get("satellite") == "DEGRADED" or data_quality.get("weather") == "DEGRADED") else "OPTIMAL"
+    grid_k = snapshot_store.grid_key_for(req.latitude, req.longitude)
+    now_utc = datetime.now(timezone.utc)
+    cur_snap = snapshot_store.record_snapshot(
+        lat=req.latitude,
+        lon=req.longitude,
+        risk_probability=base_prob,
+        rainfall_7d_mm=features.get("rainfall_7d_mm", 35.0),
+        sar_vv=features.get("sar_vv", 0.35),
+        sar_vh=features.get("sar_vh", 0.08),
+        elevation=features.get("elevation", 0.0),
+        slope=features.get("slope", 0.0),
+        data_quality=snap_quality,
+        model_version="v4.0-multimodal-real",
+        timestamp=now_utc
+    )
+    _, prev_snap = snapshot_store.get_latest_and_previous(grid_k)
+    velocity_props = calculate_velocity_properties(cur_snap, prev_snap)
+    timeline_snapshots = snapshot_store.get_timeline(req.latitude, req.longitude, limit=5)
+
     return {
         "prediction_id": req_id,
         "region_id": "NER_REAL_LOC",
         "region_name": state_label,
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": now_utc.isoformat(),
         "latitude": req.latitude,
         "longitude": req.longitude,
         "features": features,
@@ -231,6 +258,8 @@ def run_prediction(req: PredictionRequest):
         "risk_level": prediction_result["risk_level"],
         "explanation": prediction_result["explanation"],
         "timeline": timeline,
+        "risk_velocity": velocity_props,
+        "timeline_snapshots": timeline_snapshots,
         "historical_context": historical_ctx,
         "data_quality": data_quality,
         "telemetry": telemetry,
@@ -240,6 +269,7 @@ def run_prediction(req: PredictionRequest):
 
 def handle_demo_scenario(lat: float, lon: float, scenario: str):
     """Isolated Demo scenarios with deterministic controlled inputs for presentations."""
+    now_utc = datetime.now(timezone.utc)
     if scenario == 'A':
         base_prob = 0.185
         risk_level = "LOW"
@@ -261,6 +291,25 @@ def handle_demo_scenario(lat: float, lon: float, scenario: str):
         ]
         timeline = {"Current": "LOW", "+6h": "LOW", "+12h": "LOW", "+24h": "LOW"}
         scenario_title = "Scenario A: Normal Conditions"
+        velocity_props = {
+            "current_risk": 0.185,
+            "previous_risk": 0.175,
+            "risk_delta": 0.010,
+            "risk_delta_pct": 5.7,
+            "trend": "STABLE",
+            "confidence": "HIGH",
+            "observation_age_hours": 6.0,
+            "fill": "#94a3b8",
+            "primary_driver": "Stable environmental baseline",
+            "data_quality": "OPTIMAL",
+            "feature_deltas": {"rainfall_delta_mm": 1.2, "sar_vv_delta": 0.005}
+        }
+        timeline_snapshots = [
+            {"timestamp": (now_utc - timedelta(hours=18)).isoformat(), "risk_probability": 0.165, "rainfall_7d_mm": 15.0},
+            {"timestamp": (now_utc - timedelta(hours=12)).isoformat(), "risk_probability": 0.170, "rainfall_7d_mm": 16.5},
+            {"timestamp": (now_utc - timedelta(hours=6)).isoformat(), "risk_probability": 0.175, "rainfall_7d_mm": 17.2},
+            {"timestamp": now_utc.isoformat(), "risk_probability": 0.185, "rainfall_7d_mm": 18.4}
+        ]
         
     elif scenario == 'B':
         base_prob = 0.742
@@ -283,6 +332,25 @@ def handle_demo_scenario(lat: float, lon: float, scenario: str):
         ]
         timeline = {"Current": "HIGH", "+6h": "HIGH", "+12h": "CRITICAL", "+24h": "CRITICAL"}
         scenario_title = "Scenario B: Heavy Monsoon & Saturated Slope"
+        velocity_props = {
+            "current_risk": 0.742,
+            "previous_risk": 0.620,
+            "risk_delta": 0.122,
+            "risk_delta_pct": 19.7,
+            "trend": "INCREASING",
+            "confidence": "HIGH",
+            "observation_age_hours": 6.0,
+            "fill": "#f97316",
+            "primary_driver": "Rainfall accumulation shift (+78.4 mm)",
+            "data_quality": "OPTIMAL",
+            "feature_deltas": {"rainfall_delta_mm": 78.4, "sar_vv_delta": 0.145}
+        }
+        timeline_snapshots = [
+            {"timestamp": (now_utc - timedelta(hours=18)).isoformat(), "risk_probability": 0.480, "rainfall_7d_mm": 90.0},
+            {"timestamp": (now_utc - timedelta(hours=12)).isoformat(), "risk_probability": 0.550, "rainfall_7d_mm": 140.2},
+            {"timestamp": (now_utc - timedelta(hours=6)).isoformat(), "risk_probability": 0.620, "rainfall_7d_mm": 175.5},
+            {"timestamp": now_utc.isoformat(), "risk_probability": 0.742, "rainfall_7d_mm": 218.6}
+        ]
         
     else:
         base_prob = 0.928
@@ -305,6 +373,25 @@ def handle_demo_scenario(lat: float, lon: float, scenario: str):
         ]
         timeline = {"Current": "CRITICAL", "+6h": "CRITICAL", "+12h": "CRITICAL", "+24h": "CRITICAL"}
         scenario_title = "Scenario C: Extreme Cloudburst & Debris Flow Trigger"
+        velocity_props = {
+            "current_risk": 0.928,
+            "previous_risk": 0.650,
+            "risk_delta": 0.278,
+            "risk_delta_pct": 42.8,
+            "trend": "RAPIDLY_INCREASING",
+            "confidence": "HIGH",
+            "observation_age_hours": 6.0,
+            "fill": "#ef4444",
+            "primary_driver": "Extreme cloudburst rainfall accumulation (+195.0 mm)",
+            "data_quality": "OPTIMAL",
+            "feature_deltas": {"rainfall_delta_mm": 195.0, "sar_vv_delta": 0.420}
+        }
+        timeline_snapshots = [
+            {"timestamp": (now_utc - timedelta(hours=18)).isoformat(), "risk_probability": 0.420, "rainfall_7d_mm": 80.0},
+            {"timestamp": (now_utc - timedelta(hours=12)).isoformat(), "risk_probability": 0.510, "rainfall_7d_mm": 135.0},
+            {"timestamp": (now_utc - timedelta(hours=6)).isoformat(), "risk_probability": 0.650, "rainfall_7d_mm": 217.0},
+            {"timestamp": now_utc.isoformat(), "risk_probability": 0.928, "rainfall_7d_mm": 412.0}
+        ]
 
     historical_ctx = get_historical_context(lat, lon)
 
@@ -312,7 +399,7 @@ def handle_demo_scenario(lat: float, lon: float, scenario: str):
         "prediction_id": f"DEMO-{uuid.uuid4()}",
         "region_id": "NER_DEMO",
         "region_name": f"{scenario_title} (Demo Evaluation)",
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": now_utc.isoformat(),
         "latitude": lat,
         "longitude": lon,
         "features": features,
@@ -320,6 +407,8 @@ def handle_demo_scenario(lat: float, lon: float, scenario: str):
         "risk_level": risk_level,
         "explanation": exp,
         "timeline": timeline,
+        "risk_velocity": velocity_props,
+        "timeline_snapshots": timeline_snapshots,
         "historical_context": historical_ctx,
         "data_quality": {
             "dem": "AVAILABLE",
@@ -366,3 +455,38 @@ def get_risk_map(
         metrics_store["errors_total"] += 1
         logger.error(f"Risk map generation error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/risk_velocity")
+def get_risk_velocity(
+    min_lon: float = Query(91.0, ge=-180.0, le=180.0),
+    min_lat: float = Query(25.0, ge=-90.0, le=90.0),
+    max_lon: float = Query(92.0, ge=-180.0, le=180.0),
+    max_lat: float = Query(26.0, ge=-90.0, le=90.0),
+    resolution: float = Query(0.05, ge=0.01, le=0.5),
+    scenario: Optional[str] = Query(None)
+):
+    """Generates a spatial Risk Velocity (Change) GeoJSON grid answering 'Where is landslide risk changing?'."""
+    metrics_store["requests_total"] += 1
+    try:
+        return generate_risk_velocity_geojson(min_lon, min_lat, max_lon, max_lat, resolution, scenario)
+    except ValueError as ve:
+        raise HTTPException(status_code=400, detail=str(ve))
+    except Exception as e:
+        metrics_store["errors_total"] += 1
+        logger.error(f"Risk velocity generation error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/predictions/timeline")
+def get_prediction_timeline(
+    lat: float = Query(..., ge=-90.0, le=90.0),
+    lng: float = Query(..., ge=-180.0, le=180.0),
+    limit: int = Query(5, ge=1, le=20)
+):
+    """Returns stored observation timeline history for a specific geodetic coordinate."""
+    metrics_store["requests_total"] += 1
+    return {
+        "latitude": lat,
+        "longitude": lng,
+        "timeline": snapshot_store.get_timeline(lat, lng, limit=limit)
+    }
+

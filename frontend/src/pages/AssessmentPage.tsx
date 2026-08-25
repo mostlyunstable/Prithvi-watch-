@@ -234,6 +234,92 @@ export const AssessmentPage: React.FC = () => {
             </div>
           </div>
 
+          {/* 3. Where is Risk Changing? (Risk Velocity & Stored Observations) */}
+          {prediction.risk_velocity && (
+            <div className="p-4 bg-slate-900 rounded-lg border border-slate-800 space-y-3 font-sans">
+              <div className="flex flex-wrap justify-between items-center gap-2 border-b border-slate-800 pb-2">
+                <div className="flex items-center space-x-2">
+                  <h3 className="text-sm font-bold text-white">Where is Risk Changing? (Risk Velocity)</h3>
+                  <span
+                    className="px-2 py-0.5 rounded text-[10px] uppercase font-mono font-bold"
+                    style={{
+                      backgroundColor: `${prediction.risk_velocity.fill}20`,
+                      color: prediction.risk_velocity.fill,
+                      border: `1px solid ${prediction.risk_velocity.fill}60`
+                    }}
+                  >
+                    {prediction.risk_velocity.trend.replace('_', ' ')}
+                  </span>
+                </div>
+                <span className="text-[10px] font-mono text-slate-400">
+                  Confidence: <strong className={prediction.risk_velocity.confidence === 'HIGH' ? 'text-emerald-400' : 'text-amber-400'}>{prediction.risk_velocity.confidence}</strong>
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                <div className="p-3 bg-slate-950 rounded-md border border-slate-850 space-y-1">
+                  <span className="text-[9px] font-mono uppercase font-bold text-slate-400 block">Risk Change</span>
+                  <div className="text-lg font-bold font-mono text-white">
+                    {prediction.risk_velocity.risk_delta !== null ? (
+                      <span>
+                        {prediction.risk_velocity.risk_delta > 0 ? '+' : ''}
+                        {(prediction.risk_velocity.risk_delta * 100).toFixed(1)} pts
+                      </span>
+                    ) : (
+                      'Baseline'
+                    )}
+                  </div>
+                  <p className="text-[10px] text-slate-400 font-sans">
+                    {prediction.risk_velocity.risk_delta_pct !== null
+                      ? `${prediction.risk_velocity.risk_delta_pct > 0 ? '+' : ''}${prediction.risk_velocity.risk_delta_pct.toFixed(1)}% relative change`
+                      : 'Initial observation'}
+                  </p>
+                </div>
+
+                <div className="p-3 bg-slate-950 rounded-md border border-slate-850 space-y-1">
+                  <span className="text-[9px] font-mono uppercase font-bold text-slate-400 block">Observation Age</span>
+                  <div className="text-lg font-bold font-mono text-white">
+                    {prediction.risk_velocity.observation_age_hours !== null
+                      ? `${prediction.risk_velocity.observation_age_hours.toFixed(1)} hours`
+                      : 'Recent'}
+                  </div>
+                  <p className="text-[10px] text-slate-400 font-sans">Elapsed time between model snapshots.</p>
+                </div>
+
+                <div className="p-3 bg-slate-950 rounded-md border border-slate-850 space-y-1">
+                  <span className="text-[9px] font-mono uppercase font-bold text-slate-400 block">Primary Driver</span>
+                  <div className="text-xs font-semibold text-slate-200 truncate" title={prediction.risk_velocity.primary_driver}>
+                    {prediction.risk_velocity.primary_driver}
+                  </div>
+                  <p className="text-[10px] text-slate-400 font-sans">Contributed to model risk delta.</p>
+                </div>
+              </div>
+
+              {/* Stored Snapshots Timeline */}
+              {prediction.timeline_snapshots && prediction.timeline_snapshots.length > 0 && (
+                <div className="p-3 bg-slate-950 rounded-md border border-slate-850 space-y-2">
+                  <span className="text-[10px] font-mono uppercase font-bold text-slate-400 block">
+                    Recorded Observation History ({prediction.timeline_snapshots.length} Snapshots)
+                  </span>
+                  <div className="flex flex-wrap items-center gap-2 font-mono text-xs">
+                    {prediction.timeline_snapshots.map((snap, idx) => (
+                      <div
+                        key={idx}
+                        className="px-2.5 py-1.5 bg-slate-900 border border-slate-800 rounded-md flex items-center space-x-2 text-[11px]"
+                      >
+                        <span className="text-slate-500 text-[9px]">{new Date(snap.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                        <span className="font-bold text-white">{(snap.risk_probability * 100).toFixed(1)}%</span>
+                        {snap.rainfall_7d_mm !== undefined && (
+                          <span className="text-[9px] text-slate-400">({snap.rainfall_7d_mm.toFixed(0)}mm rain)</span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* 4. What the System Found */}
           <div className="p-4 bg-slate-900 rounded-lg border border-slate-800 space-y-3">
             <div className="flex justify-between items-center border-b border-slate-800 pb-2">

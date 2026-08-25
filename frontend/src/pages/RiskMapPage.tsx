@@ -215,6 +215,53 @@ export const RiskMapPage: React.FC = () => {
             </p>
           </div>
 
+          {/* Risk Change & Velocity Section */}
+          {prediction.risk_velocity && (
+            <div className="p-2.5 bg-slate-950 rounded-md border border-slate-800 space-y-1.5 font-sans">
+              <div className="flex justify-between items-center">
+                <span className="text-[10px] uppercase font-mono text-slate-400 font-bold">
+                  Risk Velocity (6h Delta)
+                </span>
+                <span
+                  className="px-2 py-0.5 rounded text-[9px] uppercase font-mono font-bold"
+                  style={{
+                    backgroundColor: `${prediction.risk_velocity.fill}20`,
+                    color: prediction.risk_velocity.fill,
+                    border: `1px solid ${prediction.risk_velocity.fill}60`
+                  }}
+                >
+                  {prediction.risk_velocity.trend.replace('_', ' ')}
+                </span>
+              </div>
+
+              <div className="text-[11px] font-mono text-slate-200">
+                {prediction.risk_velocity.risk_delta !== null ? (
+                  <span>
+                    Change:{' '}
+                    <strong className="text-white">
+                      {prediction.risk_velocity.risk_delta > 0 ? '+' : ''}
+                      {(prediction.risk_velocity.risk_delta * 100).toFixed(1)} percentage pts
+                    </strong>{' '}
+                    over {prediction.risk_velocity.observation_age_hours ?? 6}h
+                  </span>
+                ) : (
+                  <span className="text-slate-400">Baseline established · Awaiting second observation</span>
+                )}
+              </div>
+
+              <div className="text-[10px] text-slate-400 leading-snug">
+                <span className="text-slate-500 font-mono">Driver:</span> {prediction.risk_velocity.primary_driver}
+              </div>
+
+              <div className="flex justify-between items-center pt-1 border-t border-slate-850 text-[9px] font-mono text-slate-500">
+                <span>Confidence: <strong className={prediction.risk_velocity.confidence === 'HIGH' ? 'text-emerald-400' : 'text-amber-400'}>{prediction.risk_velocity.confidence}</strong></span>
+                {prediction.timeline_snapshots && prediction.timeline_snapshots.length > 1 && (
+                  <span className="text-slate-400">{prediction.timeline_snapshots.length} observations</span>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Why is the risk high/low? (Top 3 Model Drivers) */}
           <div className="space-y-1">
             <span className="text-[9px] font-mono uppercase font-bold text-slate-400 tracking-wider block">

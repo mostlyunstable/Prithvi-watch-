@@ -1,8 +1,8 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import * as maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import { Home, Layers, Map as MapIcon, ChevronDown, AlertTriangle } from 'lucide-react';
-import { fetchRegions, fetchHistoricalLandslides, runPrediction, fetchRiskMap } from '../services/api';
+import { Home, Layers, Map as MapIcon, ChevronDown, AlertTriangle, Flame, TrendingUp } from 'lucide-react';
+import { fetchRegions, fetchHistoricalLandslides, runPrediction, fetchRiskMap, fetchRiskVelocity } from '../services/api';
 import { computeAdaptiveResolution, safeToFixed } from '../utils/geoAnalytics';
 
 interface MapProps {
@@ -141,6 +141,7 @@ const BASEMAP_STYLES: Record<string, maplibregl.StyleSpecification> = {
 let _globalBoundariesCache: any = null;
 let _globalHistoricalCache: any = null;
 const _globalRiskGridCache = new globalThis.Map<string, any>();
+const _globalVelocityGridCache = new globalThis.Map<string, any>();
 
 export const Map: React.FC<MapProps> = ({
   onPredictionResult,
@@ -154,11 +155,16 @@ export const Map: React.FC<MapProps> = ({
   const stateLabelMarkers = useRef<maplibregl.Marker[]>([]);
   const hoverPopup = useRef<maplibregl.Popup | null>(null);
   const lastRiskMapDataRef = useRef<any>(null);
+  const lastVelocityMapDataRef = useRef<any>(null);
   const debounceTimerRef = useRef<any>(null);
 
   // Direct DOM refs for 60fps performance without React re-rendering on mousemove/zoom
   const coordsDisplayRef = useRef<HTMLSpanElement>(null);
   const zoomDisplayRef = useRef<HTMLSpanElement>(null);
+
+  // View Mode: 'risk' (Current Risk) vs 'velocity' (Risk Change)
+  const [mapViewMode, setMapViewMode] = useState<'risk' | 'velocity'>('risk');
+  const mapViewModeRef = useRef(mapViewMode);
 
   // Basemap & Layer Toggles (Terrain is the default visual foundation)
   const [basemap, setBasemap] = useState<'standard' | 'topo' | 'dark'>('topo');
@@ -189,6 +195,10 @@ export const Map: React.FC<MapProps> = ({
   useEffect(() => {
     activeScenarioRef.current = activeScenario;
   }, [activeScenario]);
+
+  useEffect(() => {
+    mapViewModeRef.current = mapViewMode;
+  }, [mapViewMode]);
 
   useEffect(() => {
     showRiskMapRef.current = showRiskMap;
@@ -236,6 +246,8 @@ export const Map: React.FC<MapProps> = ({
       zoom: initialZoom,
       pitch: 0,
       bearing: 0,
+      speed: 1.2,
+      curve: 1.4,
       essential: true
     });
   };
@@ -291,7 +303,7 @@ export const Map: React.FC<MapProps> = ({
     }
   }, [onPredictionResult, createGoogleMapsPinElement]);
 
-  // Hover Popups on Risk Grid
+  // Hover Popups on Hazard Risk Grid
   const handleRiskMouseEnter = useCallback((e: maplibregl.MapLayerMouseEvent) => {
     if (map.current) map.current.getCanvas().style.cursor = 'pointer';
     if (!e.features || !e.features[0]) return;
@@ -309,9 +321,9 @@ export const Map: React.FC<MapProps> = ({
       .setLngLat(e.lngLat)
       .setHTML(
         `<div style="background-color: #0f172a; color: #f8fafc; padding: 6px 10px; font-family: ui-sans-serif, system-ui, sans-serif; font-size: 11px; border-radius: 6px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.3); border: 1px solid #334155;">
-          <div style="font-size: 9px; font-weight: 700; color: #94a3b8; text-transform: uppercase;">ESTIMATED RISK</div>
+          <div style="font-size: 9px; font-weight: 700; color: #94a3b8; text-transform: uppercase;">CURRENT RISK</div>
           <div style="font-size: 13px; font-weight: 800; color: ${props.fill ?? '#ea580c'}; margin-top: 1px;">${probPct}% · ${riskLevel}</div>
-          <div style="font-size: 10px; color: #cbd5e1; margin-top: 3px;">Click to check this location</div>
+          <div style="font-size: 10px; color: #cbd5e1; margin-top: 3px;">Click to evaluate this cell</div>
         </div>`
       );
     if (map.current) {
@@ -320,6 +332,50 @@ export const Map: React.FC<MapProps> = ({
   }, []);
 
   const handleRiskMouseLeave = useCallback(() => {
+    if (map.current) map.current.getCanvas().style.cursor = '';
+    if (hoverPopup.current) hoverPopup.current.remove();
+  }, []);
+
+  // Hover Popups on Risk Velocity Grid
+  const handleVelocityMouseEnter = useCallback((e: maplibregl.MapLayerMouseEvent) => {
+    if (map.current) map.current.getCanvas().style.cursor = 'pointer';
+    if (!e.features || !e.features[0]) return;
+    const props = e.features[0].properties || {};
+    const trend = props.trend || 'INSUFFICIENT_HISTORY';
+    const trendLabel = trend.replace('_', ' ');
+    const deltaPct = props.risk_delta_pct !== null && props.risk_delta_pct !== undefined
+      ? `${props.risk_delta_pct > 0 ? '+' : ''}${props.risk_delta_pct.toFixed(1)}%`
+      : 'N/A';
+    const deltaPts = props.risk_delta !== null && props.risk_delta !== undefined
+      ? `${props.risk_delta > 0 ? '+' : ''}${(props.risk_delta * 100).toFixed(0)} pts`
+      : '—';
+    const driver = props.primary_driver || 'Environmental baseline';
+    const conf = props.confidence || 'HIGH';
+
+    if (hoverPopup.current) hoverPopup.current.remove();
+    hoverPopup.current = new maplibregl.Popup({
+      closeButton: false,
+      closeOnClick: false,
+      offset: 10
+    })
+      .setLngLat(e.lngLat)
+      .setHTML(
+        `<div style="background-color: #0f172a; color: #f8fafc; padding: 7px 10px; font-family: ui-sans-serif, system-ui, sans-serif; font-size: 11px; border-radius: 6px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.3); border: 1px solid #334155; min-width: 175px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; padding-bottom: 4px; margin-bottom: 4px;">
+            <span style="font-size: 9px; font-weight: 700; color: #94a3b8; text-transform: uppercase;">RISK CHANGE</span>
+            <span style="font-size: 8px; font-family: monospace; color: ${conf === 'HIGH' ? '#4ade80' : '#f59e0b'}; font-weight: bold;">${conf} CONF</span>
+          </div>
+          <div style="font-size: 12px; font-weight: 800; color: ${props.fill ?? '#94a3b8'}; text-transform: uppercase;">${trendLabel}</div>
+          <div style="font-size: 10px; font-family: monospace; color: #e2e8f0; margin-top: 2px;">Δ ${deltaPts} (${deltaPct}) over 6h</div>
+          <div style="font-size: 9px; color: #94a3b8; margin-top: 3px; border-top: 1px dashed #334155; padding-top: 3px;">Driver: ${driver}</div>
+        </div>`
+      );
+    if (map.current) {
+      hoverPopup.current.addTo(map.current);
+    }
+  }, []);
+
+  const handleVelocityMouseLeave = useCallback(() => {
     if (map.current) map.current.getCanvas().style.cursor = '';
     if (hoverPopup.current) hoverPopup.current.remove();
   }, []);
@@ -340,7 +396,7 @@ export const Map: React.FC<MapProps> = ({
           id: 'spatial-risk-layer',
           type: 'fill',
           source: 'spatial-risk-map',
-          layout: { visibility: showRiskMapRef.current ? 'visible' : 'none' },
+          layout: { visibility: (showRiskMapRef.current && mapViewModeRef.current === 'risk') ? 'visible' : 'none' },
           paint: {
             'fill-color': ['get', 'fill'],
             'fill-opacity': 0.48
@@ -354,7 +410,7 @@ export const Map: React.FC<MapProps> = ({
           id: 'spatial-risk-outline',
           type: 'line',
           source: 'spatial-risk-map',
-          layout: { visibility: showRiskMapRef.current ? 'visible' : 'none' },
+          layout: { visibility: (showRiskMapRef.current && mapViewModeRef.current === 'risk') ? 'visible' : 'none' },
           paint: {
             'line-color': ['get', 'fill'],
             'line-width': 0.5,
@@ -381,7 +437,64 @@ export const Map: React.FC<MapProps> = ({
     }
   }, [handleRiskMouseEnter, handleRiskMouseLeave]);
 
-  // Fetch Spatial Risk Grid with Zoom-Adaptive Resolution, Caching & Debouncing
+  // Render Spatial Risk Velocity Layers
+  const renderSpatialVelocityLayers = useCallback((data: any) => {
+    if (!map.current || !map.current.isStyleLoaded() || !data?.features) return;
+
+    const beforeId = map.current.getLayer('historical-landslides-circles')
+      ? 'historical-landslides-circles'
+      : undefined;
+
+    if (!map.current.getSource('spatial-risk-velocity')) {
+      map.current.addSource('spatial-risk-velocity', { type: 'geojson', data });
+
+      map.current.addLayer(
+        {
+          id: 'risk-velocity-layer',
+          type: 'fill',
+          source: 'spatial-risk-velocity',
+          layout: { visibility: (showRiskMapRef.current && mapViewModeRef.current === 'velocity') ? 'visible' : 'none' },
+          paint: {
+            'fill-color': ['get', 'fill'],
+            'fill-opacity': 0.52
+          }
+        },
+        beforeId
+      );
+
+      map.current.addLayer(
+        {
+          id: 'risk-velocity-outline',
+          type: 'line',
+          source: 'spatial-risk-velocity',
+          layout: { visibility: (showRiskMapRef.current && mapViewModeRef.current === 'velocity') ? 'visible' : 'none' },
+          paint: {
+            'line-color': ['get', 'fill'],
+            'line-width': 0.5,
+            'line-opacity': 0.38
+          }
+        },
+        beforeId
+      );
+
+      map.current.off('mouseenter', 'risk-velocity-layer', handleVelocityMouseEnter);
+      map.current.off('mouseleave', 'risk-velocity-layer', handleVelocityMouseLeave);
+      map.current.on('mouseenter', 'risk-velocity-layer', handleVelocityMouseEnter);
+      map.current.on('mouseleave', 'risk-velocity-layer', handleVelocityMouseLeave);
+    } else {
+      const src = map.current.getSource('spatial-risk-velocity') as maplibregl.GeoJSONSource;
+      src.setData(data);
+
+      if (beforeId && map.current.getLayer('risk-velocity-layer')) {
+        try {
+          map.current.moveLayer('risk-velocity-layer', beforeId);
+          map.current.moveLayer('risk-velocity-outline', beforeId);
+        } catch {}
+      }
+    }
+  }, [handleVelocityMouseEnter, handleVelocityMouseLeave]);
+
+  // Fetch Spatial Risk Grid (Current Risk or Risk Velocity)
   const fetchRiskMapData = useCallback(async (immediate: boolean = false) => {
     if (!map.current) return;
     const b = map.current.getBounds();
@@ -393,16 +506,27 @@ export const Map: React.FC<MapProps> = ({
     const east = b.getEast();
     const north = b.getNorth();
     const resolution = computeAdaptiveResolution(west, south, east, north, zoom);
+    const isVelocity = mapViewModeRef.current === 'velocity';
+    const scenario = demoModeRef.current ? activeScenarioRef.current : undefined;
 
     // Quantized cache key
-    const cacheKey = `${west.toFixed(2)},${south.toFixed(2)},${east.toFixed(2)},${north.toFixed(2)},${resolution.toFixed(3)}`;
+    const cacheKey = `${isVelocity ? 'VEL' : 'RISK'}_${scenario || 'REAL'}_${west.toFixed(2)},${south.toFixed(2)},${east.toFixed(2)},${north.toFixed(2)},${resolution.toFixed(3)}`;
+    const targetCache = isVelocity ? _globalVelocityGridCache : _globalRiskGridCache;
 
     // If already in spatial cache, render instantly with zero network delay
-    if (_globalRiskGridCache.has(cacheKey)) {
-      const cachedData = _globalRiskGridCache.get(cacheKey);
-      lastRiskMapDataRef.current = cachedData;
+    if (targetCache.has(cacheKey)) {
+      const cachedData = targetCache.get(cacheKey);
+      if (isVelocity) {
+        lastVelocityMapDataRef.current = cachedData;
+      } else {
+        lastRiskMapDataRef.current = cachedData;
+      }
       if (map.current && map.current.isStyleLoaded()) {
-        renderSpatialRiskLayers(cachedData);
+        if (isVelocity) {
+          renderSpatialVelocityLayers(cachedData);
+        } else {
+          renderSpatialRiskLayers(cachedData);
+        }
       }
       return;
     }
@@ -411,22 +535,33 @@ export const Map: React.FC<MapProps> = ({
       if (!map.current) return;
       setRiskMapLoading(true);
       try {
-        const data = await fetchRiskMap(west, south, east, north, resolution);
+        const data = isVelocity
+          ? await fetchRiskVelocity(west, south, east, north, resolution, scenario)
+          : await fetchRiskMap(west, south, east, north, resolution);
+
         if (data?.features) {
-          _globalRiskGridCache.set(cacheKey, data);
-          // Limit memory cache size
-          if (_globalRiskGridCache.size > 40) {
-            const firstKey = _globalRiskGridCache.keys().next().value;
-            if (firstKey) _globalRiskGridCache.delete(firstKey);
+          targetCache.set(cacheKey, data);
+          if (targetCache.size > 40) {
+            const firstKey = targetCache.keys().next().value;
+            if (firstKey) targetCache.delete(firstKey);
           }
 
-          lastRiskMapDataRef.current = data;
+          if (isVelocity) {
+            lastVelocityMapDataRef.current = data;
+          } else {
+            lastRiskMapDataRef.current = data;
+          }
+
           if (map.current && map.current.isStyleLoaded()) {
-            renderSpatialRiskLayers(data);
+            if (isVelocity) {
+              renderSpatialVelocityLayers(data);
+            } else {
+              renderSpatialRiskLayers(data);
+            }
           }
         }
       } catch (e) {
-        console.error('Failed to fetch spatial risk grid:', e);
+        console.error(`Failed to fetch ${isVelocity ? 'risk velocity' : 'spatial risk'} grid:`, e);
       } finally {
         setRiskMapLoading(false);
       }
@@ -440,7 +575,7 @@ export const Map: React.FC<MapProps> = ({
       }
       debounceTimerRef.current = setTimeout(executeFetch, 250);
     }
-  }, [renderSpatialRiskLayers]);
+  }, [renderSpatialRiskLayers, renderSpatialVelocityLayers]);
 
   // Add Operational GIS Layers with In-Memory Caching
   const addOperationalGISLayers = useCallback(async () => {
@@ -666,20 +801,29 @@ export const Map: React.FC<MapProps> = ({
     map.current.setStyle(targetStyle);
   }, [basemap]);
 
-  // Dynamic Layer Visibility Handlers
+  // Dynamic Layer Visibility Handlers (Current Risk vs Risk Velocity)
   useEffect(() => {
     if (!map.current || !map.current.isStyleLoaded()) return;
-    const vis = showRiskMap ? 'visible' : 'none';
+    const isRiskVisible = showRiskMap && mapViewMode === 'risk';
+    const isVelocityVisible = showRiskMap && mapViewMode === 'velocity';
+
     if (map.current.getLayer('spatial-risk-layer')) {
-      map.current.setLayoutProperty('spatial-risk-layer', 'visibility', vis);
+      map.current.setLayoutProperty('spatial-risk-layer', 'visibility', isRiskVisible ? 'visible' : 'none');
     }
     if (map.current.getLayer('spatial-risk-outline')) {
-      map.current.setLayoutProperty('spatial-risk-outline', 'visibility', vis);
+      map.current.setLayoutProperty('spatial-risk-outline', 'visibility', isRiskVisible ? 'visible' : 'none');
     }
-    if (showRiskMap && !map.current.getSource('spatial-risk-map')) {
+    if (map.current.getLayer('risk-velocity-layer')) {
+      map.current.setLayoutProperty('risk-velocity-layer', 'visibility', isVelocityVisible ? 'visible' : 'none');
+    }
+    if (map.current.getLayer('risk-velocity-outline')) {
+      map.current.setLayoutProperty('risk-velocity-outline', 'visibility', isVelocityVisible ? 'visible' : 'none');
+    }
+
+    if (showRiskMap) {
       fetchRiskMapData(true);
     }
-  }, [showRiskMap, fetchRiskMapData]);
+  }, [showRiskMap, mapViewMode, fetchRiskMapData]);
 
   useEffect(() => {
     if (!map.current || !map.current.isStyleLoaded()) return;
@@ -783,6 +927,32 @@ export const Map: React.FC<MapProps> = ({
         <Home className="w-3.5 h-3.5" />
       </button>
 
+      {/* Top Center: View Mode Switcher (Current Risk | Risk Change) */}
+      <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 hidden sm:flex items-center bg-slate-900/95 backdrop-blur-md border border-slate-800 p-0.5 rounded-lg shadow-xl text-xs font-medium">
+        <button
+          onClick={() => setMapViewMode('risk')}
+          className={`flex items-center space-x-1.5 px-3 py-1 rounded-md transition ${
+            mapViewMode === 'risk'
+              ? 'bg-blue-600 text-white font-bold shadow'
+              : 'text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          <Flame className="w-3.5 h-3.5" />
+          <span>Current Risk</span>
+        </button>
+        <button
+          onClick={() => setMapViewMode('velocity')}
+          className={`flex items-center space-x-1.5 px-3 py-1 rounded-md transition ${
+            mapViewMode === 'velocity'
+              ? 'bg-orange-600 text-white font-bold shadow'
+              : 'text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          <TrendingUp className="w-3.5 h-3.5" />
+          <span>Risk Change</span>
+        </button>
+      </div>
+
       {/* Top Right: Compact Dropdown Controls */}
       <div className="absolute top-4 right-4 z-10 flex items-center space-x-2">
         {/* Style Selector Popover */}
@@ -864,7 +1034,7 @@ export const Map: React.FC<MapProps> = ({
                   onChange={(e) => setShowRiskMap(e.target.checked)}
                   className="rounded border-slate-700 bg-slate-950 text-blue-600 focus:ring-0"
                 />
-                <span className="text-[11px]">Landslide Risk</span>
+                <span className="text-[11px]">{mapViewMode === 'risk' ? 'Landslide Risk Grid' : 'Risk Velocity Grid'}</span>
               </label>
 
               <label className="flex items-center space-x-2 cursor-pointer hover:text-white">
@@ -901,33 +1071,62 @@ export const Map: React.FC<MapProps> = ({
         </div>
       </div>
 
-      {/* Floating Compact Map Legend (Bottom Left) */}
-      <div className="absolute bottom-5 left-5 z-10 bg-slate-900/90 backdrop-blur-md border border-slate-800 p-2.5 rounded-md shadow-xl text-[10px] text-slate-300 space-y-1.5 max-w-[200px]">
+      {/* Floating Dynamic Map Legend (Bottom Left) */}
+      <div className="absolute bottom-5 left-5 z-10 bg-slate-900/90 backdrop-blur-md border border-slate-800 p-2.5 rounded-md shadow-xl text-[10px] text-slate-300 space-y-1.5 max-w-[210px]">
         <div className="flex justify-between items-center border-b border-slate-800 pb-1">
           <span className="font-bold uppercase tracking-wider text-slate-400 text-[9px]">
-            LANDSLIDE RISK
+            {mapViewMode === 'risk' ? 'CURRENT RISK' : 'RISK CHANGE (6H)'}
           </span>
           {riskMapLoading && <span className="text-[8px] text-orange-400 font-mono">SYNCING</span>}
         </div>
 
-        <div className="grid grid-cols-2 gap-1.5 font-mono text-[10px]">
-          <div className="flex items-center space-x-1.5">
-            <span className="w-2.5 h-2.5 rounded-sm bg-[#22c55e] opacity-80" />
-            <span>Low</span>
+        {mapViewMode === 'risk' ? (
+          <div className="grid grid-cols-2 gap-1.5 font-mono text-[10px]">
+            <div className="flex items-center space-x-1.5">
+              <span className="w-2.5 h-2.5 rounded-sm bg-[#22c55e] opacity-80" />
+              <span>Low</span>
+            </div>
+            <div className="flex items-center space-x-1.5">
+              <span className="w-2.5 h-2.5 rounded-sm bg-[#eab308] opacity-80" />
+              <span>Moderate</span>
+            </div>
+            <div className="flex items-center space-x-1.5">
+              <span className="w-2.5 h-2.5 rounded-sm bg-[#f97316] opacity-80" />
+              <span>High</span>
+            </div>
+            <div className="flex items-center space-x-1.5">
+              <span className="w-2.5 h-2.5 rounded-sm bg-[#ef4444] opacity-80" />
+              <span>Critical</span>
+            </div>
           </div>
-          <div className="flex items-center space-x-1.5">
-            <span className="w-2.5 h-2.5 rounded-sm bg-[#eab308] opacity-80" />
-            <span>Moderate</span>
+        ) : (
+          <div className="space-y-1 font-mono text-[9px]">
+            <div className="flex items-center space-x-1.5">
+              <span className="w-2.5 h-2.5 rounded-sm bg-[#ef4444]" />
+              <span>↑ Rapidly Increasing</span>
+            </div>
+            <div className="flex items-center space-x-1.5">
+              <span className="w-2.5 h-2.5 rounded-sm bg-[#f97316]" />
+              <span>↑ Increasing</span>
+            </div>
+            <div className="flex items-center space-x-1.5">
+              <span className="w-2.5 h-2.5 rounded-sm bg-[#94a3b8]" />
+              <span>→ Stable</span>
+            </div>
+            <div className="flex items-center space-x-1.5">
+              <span className="w-2.5 h-2.5 rounded-sm bg-[#4ade80]" />
+              <span>↓ Decreasing</span>
+            </div>
+            <div className="flex items-center space-x-1.5">
+              <span className="w-2.5 h-2.5 rounded-sm bg-[#15803d]" />
+              <span>↓ Rapidly Decreasing</span>
+            </div>
+            <div className="flex items-center space-x-1.5">
+              <span className="w-2.5 h-2.5 rounded-sm bg-[#64748b]" />
+              <span>— Insufficient History</span>
+            </div>
           </div>
-          <div className="flex items-center space-x-1.5">
-            <span className="w-2.5 h-2.5 rounded-sm bg-[#f97316] opacity-80" />
-            <span>High</span>
-          </div>
-          <div className="flex items-center space-x-1.5">
-            <span className="w-2.5 h-2.5 rounded-sm bg-[#ef4444] opacity-80" />
-            <span>Critical</span>
-          </div>
-        </div>
+        )}
 
         <div className="pt-1 border-t border-slate-800 space-y-1 text-[9px]">
           <div className="flex items-center space-x-1.5">
@@ -943,3 +1142,4 @@ export const Map: React.FC<MapProps> = ({
     </div>
   );
 };
+

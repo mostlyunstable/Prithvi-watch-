@@ -76,6 +76,34 @@ export interface SensorTelemetry {
   rainfall_imputed?: boolean;
 }
 
+export interface RiskVelocityProperties {
+  current_risk: number;
+  previous_risk: number | null;
+  risk_delta: number | null;
+  risk_delta_pct: number | null;
+  trend: 'RAPIDLY_INCREASING' | 'INCREASING' | 'STABLE' | 'DECREASING' | 'RAPIDLY_DECREASING' | 'INSUFFICIENT_HISTORY';
+  confidence: 'HIGH' | 'REDUCED' | 'UNKNOWN';
+  observation_age_hours: number | null;
+  fill: string;
+  primary_driver: string;
+  data_quality?: string;
+  feature_deltas?: {
+    rainfall_delta_mm?: number;
+    sar_vv_delta?: number;
+  };
+}
+
+export interface SnapshotTimelineRecord {
+  id?: string;
+  timestamp: string;
+  risk_probability: number;
+  rainfall_7d_mm?: number;
+  sar_vv?: number;
+  elevation?: number;
+  slope?: number;
+  data_quality?: string;
+}
+
 export interface PredictionResponse {
   prediction_id: string;
   region_id: string;
@@ -93,6 +121,8 @@ export interface PredictionResponse {
     '+12h': string;
     '+24h': string;
   };
+  risk_velocity?: RiskVelocityProperties;
+  timeline_snapshots?: SnapshotTimelineRecord[];
   historical_context?: HistoricalContext;
   data_quality?: DataQuality;
   telemetry?: SensorTelemetry;
@@ -139,5 +169,27 @@ export const fetchRiskMap = async (minLon: number, minLat: number, maxLon: numbe
     `${API_BASE_URL}/risk_map?min_lon=${minLon}&min_lat=${minLat}&max_lon=${maxLon}&max_lat=${maxLat}&resolution=${resolution}`
   );
   if (!response.ok) throw new Error(`Risk map generation failed: ${response.statusText}`);
+  return response.json();
+};
+
+export const fetchRiskVelocity = async (
+  minLon: number,
+  minLat: number,
+  maxLon: number,
+  maxLat: number,
+  resolution: number = 0.05,
+  scenario?: string
+) => {
+  const scenarioParam = scenario ? `&scenario=${scenario}` : '';
+  const response = await fetch(
+    `${API_BASE_URL}/risk_velocity?min_lon=${minLon}&min_lat=${minLat}&max_lon=${maxLon}&max_lat=${maxLat}&resolution=${resolution}${scenarioParam}`
+  );
+  if (!response.ok) throw new Error(`Risk velocity generation failed: ${response.statusText}`);
+  return response.json();
+};
+
+export const fetchPredictionTimeline = async (lat: number, lng: number, limit: number = 5) => {
+  const response = await fetch(`${API_BASE_URL}/predictions/timeline?lat=${lat}&lng=${lng}&limit=${limit}`);
+  if (!response.ok) throw new Error(`Prediction timeline fetch failed: ${response.statusText}`);
   return response.json();
 };
