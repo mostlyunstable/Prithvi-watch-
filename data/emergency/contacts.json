@@ -1,0 +1,147 @@
+{
+  "contacts": [
+    {
+      "id": "CNT-9F58487A",
+      "device_id": "test-device-47f70f",
+      "name": "Dr. Ananya Sharma",
+      "phone_number": "9876543210",
+      "relationship": "Doctor",
+      "is_primary": true,
+      "is_verified": true,
+      "created_at": "2026-08-25T16:27:03.085120+00:00",
+      "updated_at": "2026-08-25T16:27:03.085120+00:00"
+    },
+    {
+      "id": "CNT-F08049E2",
+      "device_id": "test-device-f47d70",
+      "name": "Arun Borah",
+      "phone_number": "+919435012345",
+      "relationship": "Family",
+      "is_primary": false,
+      "is_verified": true,
+      "created_at": "2026-08-25T16:27:03.089358+00:00",
+      "updated_at": "2026-08-25T16:27:03.089358+00:00"
+    },
+    {
+      "id": "CNT-E46848FF",
+      "device_id": "test-device-d6a8fd",
+      "name": "Invalid Contact",
+      "phone_number": "12345",
+      "relationship": "Friend",
+      "is_primary": false,
+      "is_verified": true,
+      "created_at": "2026-08-25T16:27:03.092938+00:00",
+      "updated_at": "2026-08-25T16:27:03.092938+00:00"
+    },
+    {
+      "id": "CNT-4256B426",
+      "device_id": "test-device-a24bd5",
+      "name": "Secret Contact",
+      "phone_number": "+919876543210",
+      "relationship": "Friend",
+      "is_primary": false,
+      "is_verified": true,
+      "created_at": "2026-08-25T16:27:03.211389+00:00",
+      "updated_at": "2026-08-25T16:27:03.211389+00:00"
+    },
+    {
+      "id": "CNT-8F241C2C",
+      "device_id": "test-device-8db915",
+      "name": "Rohan Borah",
+      "phone_number": "9876543210",
+      "relationship": "Other",
+      "is_primary": false,
+      "is_verified": true,
+      "created_at": "2026-08-25T16:27:03.219040+00:00",
+      "updated_at": "2026-08-25T16:27:03.219040+00:00"
+    },
+    {
+      "id": "CNT-11AD7482",
+      "device_id": "test-device-b4614d",
+      "name": "Dr. Ananya Sharma",
+      "phone_number": "9876543210",
+      "relationship": "Doctor",
+      "is_primary": true,
+      "is_verified": true,
+      "created_at": "2026-08-25T16:27:14.477029+00:00",
+      "updated_at": "2026-08-25T16:27:14.477029+00:00"
+    },
+    {
+      "id": "CNT-EC1F9DF9",
+      "device_id": "test-device-fa9067",
+      "name": "Arun Borah",
+      "phone_number": "+919435012345",
+      "relationship": "Family",
+      "is_primary": false,
+      "is_verified": true,
+      "created_at": "2026-08-25T16:27:14.481398+00:00",
+      "updated_at": "2026-08-25T16:27:14.481398+00:00"
+    },
+    {
+      "id": "CNT-EA608703",
+      "device_id": "test-device-8fa16b",
+      "name": "Secret Contact",
+      "phone_number": "+919876543210",
+      "relationship": "Friend",
+      "is_primary": false,
+      "is_verified": true,
+      "created_at": "2026-08-25T16:27:14.501467+00:00",
+      "updated_at": "2026-08-25T16:27:14.501467+00:00"
+    },
+    {
+      "id": "CNT-E47C33C6",
+      "device_id": "test-device-c26b26",
+      "name": "Rohan Borah",
+      "phone_number": "9876543210",
+      "relationship": "Other",
+      "is_primary": false,
+      "is_verified": true,
+      "created_at": "2026-08-25T16:27:14.509052+00:00",
+      "updated_at": "2026-08-25T16:27:14.509052+00:00"
+    },
+    {
+      "id": "CNT-C9F2CCC2",
+      "device_id": "test-device-b89548",
+      "name": "Dr. Ananya Sharma",
+      "phone_number": "9876543210",
+      "relationship": "Doctor",
+      "is_primary": true,
+      "is_verified": true,
+      "created_at": "2026-08-25T16:30:09.122123+00:00",
+      "updated_at": "2026-08-25T16:30:09.122123+00:00"
+    },
+    {
+      "id": "CNT-E2547408",
+      "device_id": "test-device-fa012d",
+      "name": "Arun Borah",
+      "phone_number": "+919435012345",
+      "relationship": "Family",
+      "is_primary": false,
+      "is_verified": true,
+      "created_at": "2026-08-25T16:30:09.126612+00:00",
+      "updated_at": "2026-08-25T16:30:09.126612+00:00"
+    },
+    {
+      "id": "CNT-31946DB0",
+      "device_id": "test-device-47518e",
+      "name": "Secret Contact",
+      "phone_number": "+919876543210",
+      "relationship": "Friend",
+      "is_primary": false,
+      "is_verified": true,
+      "created_at": "2026-08-25T16:30:09.146339+00:00",
+      "updated_at": "2026-08-25T16:30:09.146339+00:00"
+    },
+    {
+      "id": "CNT-1725CF53",
+      "device_id": "test-device-319344",
+      "name": "Rohan Borah",
+      "phone_number": "9876543210",
+      "relationship": "Other",
+      "is_primary": false,
+      "is_verified": true,
+      "created_at": "2026-08-25T16:30:09.154022+00:00",
+      "updated_at": "2026-08-25T16:30:09.154022+00:00"
+    }
+  ]
+}

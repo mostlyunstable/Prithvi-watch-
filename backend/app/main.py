@@ -743,5 +743,14 @@ def assess_flood_risk_post(req: FloodAssessmentRequest):
     return flood_engine.assess_coordinate(req.latitude, req.longitude)
 
 
+# ============================================================================
+# MOBILE EMERGENCY / SOS MODULE
+# ============================================================================
+
+from app.routers.emergency import router as emergency_router
+app.include_router(emergency_router)
+
+
+
 
 
