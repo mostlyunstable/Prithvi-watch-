@@ -128,19 +128,29 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       })
       .then((info) => setModelInfo(info))
       .catch((err) => {
-        console.error('API health check error:', err);
-        setBackendStatus('error');
+        if (err?.name !== 'AbortError') {
+          console.warn('API health check notice:', err?.message || err);
+          setBackendStatus('error');
+        }
       });
 
     fetchHistoricalLandslides()
       .then((data) => setHistoricalLandslides(data))
-      .catch((err) => console.warn('Historical landslides load warning:', err));
+      .catch((err) => {
+        if (err?.name !== 'AbortError') {
+          console.warn('Historical landslides load warning:', err?.message || err);
+        }
+      });
 
     // Load regional 0.05° risk grid for analytics
     setRiskGridLoading(true);
     fetchRiskMap(89.0, 24.5, 95.0, 28.0, 0.05)
       .then((grid) => setRiskGridData(grid))
-      .catch((err) => console.warn('Risk map grid fetch warning:', err))
+      .catch((err) => {
+        if (err?.name !== 'AbortError') {
+          console.warn('Risk map grid fetch warning:', err?.message || err);
+        }
+      })
       .finally(() => setRiskGridLoading(false));
 
     // Initial prediction
@@ -166,8 +176,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setLastUpdated(new Date().toLocaleTimeString('en-IN', { hour12: false }) + ' IST');
       }
     } catch (err: any) {
-      if (reqId === latestRequestId.current) {
-        console.error('Assessment failed for preset region:', err);
+      if (reqId === latestRequestId.current && err?.name !== 'AbortError') {
+        console.warn('Assessment notice for preset region:', err?.message || err);
         setErrorMessage('Observation telemetry timed out or sensor unavailable.');
       }
     } finally {
