@@ -388,14 +388,14 @@ export const Map: React.FC<MapProps> = ({
         setIsLocating(false);
         let msg = 'Unable to determine your location.';
         if (error.code === 1) {
-          msg = 'Location access was denied.';
+          msg = 'Location access is blocked. Click the lock/site settings icon in your URL bar to allow Location access.';
         } else if (error.code === 2) {
           msg = 'Unable to determine your location.';
         } else if (error.code === 3) {
-          msg = 'Location request timed out.';
+          msg = 'Location request timed out. Please try again.';
         }
         setLocationError(msg);
-        setTimeout(() => setLocationError(null), 5000);
+        setTimeout(() => setLocationError(null), 6000);
       },
       {
         enableHighAccuracy: true,
