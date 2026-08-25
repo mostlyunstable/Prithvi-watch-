@@ -1,0 +1,39 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "North Eastern Region",
+        "id": "NER_01"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              89.8,
+              21.9
+            ],
+            [
+              97.4,
+              21.9
+            ],
+            [
+              97.4,
+              29.5
+            ],
+            [
+              89.8,
+              29.5
+            ],
+            [
+              89.8,
+              21.9
+            ]
+          ]
+        ]
+      }
+    }
+  ]
+}
