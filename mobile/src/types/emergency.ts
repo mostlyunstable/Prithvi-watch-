@@ -24,6 +24,11 @@ export interface EmergencyContact {
   relationship: RelationshipType | string;
   is_primary: boolean;
   is_verified: boolean;
+  enabled: boolean;
+  push_enabled: boolean;
+  push_token?: string | null;
+  last_seen_at?: string | null;
+  pairing_code?: string;
   created_at: string;
   updated_at: string;
 }

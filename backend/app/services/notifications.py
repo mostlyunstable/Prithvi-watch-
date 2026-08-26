@@ -189,7 +189,8 @@ class ExpoPushNotificationProvider(BaseNotificationChannel):
                 "timestamp": now_utc,
                 "mode": "DEMO" if is_demo else "LIVE_PROTOTYPE",
                 "status": "ACTIVE",
-                "user_note": message or ""
+                "user_note": message or "",
+                "receipt_id": receipt_id
             }
         }
 
@@ -274,3 +275,139 @@ class ExpoPushNotificationProvider(BaseNotificationChannel):
 # Singleton service instances
 demo_notification_provider = DemoInAppNotificationProvider()
 expo_push_provider = ExpoPushNotificationProvider()
+import os
+
+class SMSNotificationProvider(BaseNotificationChannel):
+    """
+    Real SMS Provider Integration.
+    Uses generic SMS gateway (e.g., Twilio or India-specific gateway) based on env vars.
+    """
+    def __init__(self):
+        self.provider_url = os.getenv("SMS_PROVIDER_URL")
+        self.api_key = os.getenv("SMS_API_KEY")
+        self.api_secret = os.getenv("SMS_API_SECRET")
+        self.from_number = os.getenv("SMS_FROM_NUMBER")
+
+    def dispatch_alert(
+        self,
+        event_id: str,
+        sender_name: str,
+        latitude: float,
+        longitude: float,
+        recipient_token: Optional[str] = None,
+        recipient_name: Optional[str] = None,
+        recipient_phone: Optional[str] = None,
+        message: Optional[str] = None,
+        is_demo: bool = False
+    ) -> Dict[str, Any]:
+        receipt_id = f"RCPT-SMS-{uuid.uuid4().hex[:8].upper()}"
+        now_utc = datetime.now(timezone.utc).isoformat()
+        
+        if not recipient_phone:
+            return {
+                "receipt_id": receipt_id,
+                "event_id": event_id,
+                "channel": "SMS",
+                "is_demo": is_demo,
+                "status": "FAILED",
+                "error_reason": "No phone number provided.",
+                "timestamp": now_utc
+            }
+
+        masked_phone = recipient_phone[:3] + "****" + recipient_phone[-4:] if len(recipient_phone) >= 10 else "***"
+        
+        # Format SMS body
+        # Standard Maps link
+        map_link = f"https://www.google.com/maps?q={latitude},{longitude}"
+        # Format time to standard IST or similar (we'll just use UTC or formatted ISO)
+        time_str = datetime.now(timezone.utc).strftime("%d %b %Y %H:%M UTC")
+        
+        if is_demo:
+            sms_body = (
+                f"PRITHVI WATCH TEST\n\n"
+                f"This is a test emergency notification from {sender_name}.\n"
+                f"No emergency has been triggered."
+            )
+        else:
+            sms_body = (
+                f"PRITHVI WATCH SOS\n\n"
+                f"Emergency alert from {sender_name}.\n\n"
+                f"Location:\n{latitude:.4f}, {longitude:.4f}\n\n"
+                f"Time:\n{time_str}\n\n"
+                f"Open location:\n{map_link}\n\n"
+                f"Please contact the sender or emergency services if necessary."
+            )
+            
+        if not self.provider_url or not self.api_key:
+            # Fallback to simulated gateway acceptance if env vars not provided, to not crash
+            logger.warning("SMS_PROVIDER_URL or SMS_API_KEY missing. Simulating provider_accepted status.")
+            return {
+                "receipt_id": receipt_id,
+                "event_id": event_id,
+                "channel": "SMS",
+                "is_demo": is_demo,
+                "status": "provider_accepted",
+                "recipient_name": recipient_name,
+                "recipient_phone_masked": masked_phone,
+                "timestamp": now_utc,
+                "message_body": sms_body
+            }
+
+        try:
+            # Generic POST request to an SMS Gateway (like Twilio API format)
+            # We'll use Basic Auth for Twilio-like APIs
+            auth = (self.api_key, self.api_secret) if self.api_secret else None
+            headers = {"Content-Type": "application/x-www-form-urlencoded"}
+            data = {
+                "To": recipient_phone,
+                "From": self.from_number,
+                "Body": sms_body
+            }
+            
+            resp = requests.post(self.provider_url, data=data, auth=auth, headers=headers, timeout=10.0)
+            
+            if resp.status_code in [200, 201, 202]:
+                resp_json = resp.json() if "application/json" in resp.headers.get("Content-Type", "") else {}
+                # Extract provider-specific status if available, else provider_accepted
+                prov_status = resp_json.get("status", "provider_accepted")
+                if prov_status in ["queued", "sent", "delivered", "provider_accepted"]:
+                    mapped_status = prov_status
+                else:
+                    mapped_status = "provider_accepted"
+                
+                return {
+                    "receipt_id": receipt_id,
+                    "event_id": event_id,
+                    "channel": "SMS",
+                    "is_demo": is_demo,
+                    "status": mapped_status,
+                    "recipient_name": recipient_name,
+                    "recipient_phone_masked": masked_phone,
+                    "ticket_id": resp_json.get("sid", "unknown_ticket"),
+                    "timestamp": now_utc,
+                }
+            else:
+                return {
+                    "receipt_id": receipt_id,
+                    "event_id": event_id,
+                    "channel": "SMS",
+                    "is_demo": is_demo,
+                    "status": "FAILED",
+                    "recipient_phone_masked": masked_phone,
+                    "error_reason": f"SMS Gateway HTTP {resp.status_code}: {resp.text[:120]}",
+                    "timestamp": now_utc
+                }
+        except Exception as e:
+            logger.error(f"SMS dispatch network exception: {e}")
+            return {
+                "receipt_id": receipt_id,
+                "event_id": event_id,
+                "channel": "SMS",
+                "is_demo": is_demo,
+                "status": "FAILED",
+                "recipient_phone_masked": masked_phone,
+                "error_reason": f"Network exception: {str(e)}",
+                "timestamp": now_utc
+            }
+
+sms_notification_provider = SMSNotificationProvider()

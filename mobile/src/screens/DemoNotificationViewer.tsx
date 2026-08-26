@@ -13,7 +13,10 @@ import { NotificationReceipt } from '../types/emergency';
 import { emergencyApi } from '../services/api';
 import { getOrCreateDeviceId } from '../services/storage';
 
-export const DemoNotificationViewer: React.FC = () => {
+import { theme } from '../theme/theme';
+import { ScreenHeader } from '../components/ScreenHeader';
+
+export const DemoNotificationViewer: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   const [notifications, setNotifications] = useState<NotificationReceipt[]>([]);
   const [disclaimer, setDisclaimer] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(true);
@@ -130,17 +133,28 @@ export const DemoNotificationViewer: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.headerTitle}>Alert & Push Stream</Text>
-          <Text style={styles.headerSubtitle}>Two-device SOS notification tracking</Text>
+      {onBack ? (
+        <ScreenHeader
+          title="Alerts"
+          onBack={onBack}
+          rightAction={
+            <TouchableOpacity onPress={fetchNotifications}>
+              <RefreshCw size={20} color={theme.colors.text} />
+            </TouchableOpacity>
+          }
+        />
+      ) : (
+        <View style={styles.header}>
+          <View>
+            <Text style={styles.headerTitle}>Alert & Push Stream</Text>
+            <Text style={styles.headerSubtitle}>Two-device SOS notification tracking</Text>
+          </View>
+          <TouchableOpacity style={styles.refreshBtn} onPress={fetchNotifications}>
+            <RefreshCw size={16} color="#fff" />
+            <Text style={styles.refreshBtnText}>Refresh</Text>
+          </TouchableOpacity>
         </View>
-        <TouchableOpacity style={styles.refreshBtn} onPress={fetchNotifications}>
-          <RefreshCw size={16} color="#fff" />
-          <Text style={styles.refreshBtnText}>Refresh</Text>
-        </TouchableOpacity>
-      </View>
+      )}
 
       {/* Safety Notice */}
       <View style={styles.safetyBox}>

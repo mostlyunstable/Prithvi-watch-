@@ -226,3 +226,37 @@ class TestMultiDeviceSOSPushDispatch:
             assert ack_res.status_code == 200
             assert ack_res.json()["receipt"]["status"] == "ACKNOWLEDGED"
             assert ack_res.json()["receipt"]["acknowledged_by_device"] == "phone-b-responder"
+
+    def test_contact_pairing_code_verification(self):
+        # 1. Create contact (default is_verified should be False for non-test device IDs)
+        phone_a_device = f"actual-user-device-{uuid.uuid4().hex[:6]}"
+        phone_b_device = f"actual-responder-device-{uuid.uuid4().hex[:6]}"
+        
+        contact_res = client.post("/api/emergency/contacts", json={
+            "device_id": phone_a_device,
+            "name": "Pairing Partner",
+            "phone_number": "9999988888",
+            "relationship": "Friend"
+        })
+        assert contact_res.status_code == 201
+        contact_data = contact_res.json()
+        assert contact_data["is_verified"] is False
+        assert "pairing_code" in contact_data
+        pairing_code = contact_data["pairing_code"]
+
+        # 2. Pair using the correct pairing code
+        pair_res = client.post("/api/emergency/contacts/pair", json={
+            "device_id": phone_b_device,
+            "pairing_code": pairing_code
+        })
+        assert pair_res.status_code == 200
+        assert pair_res.json()["is_verified"] is True
+        assert pair_res.json()["responder_device_id"] == phone_b_device
+
+        # 3. Verify error if trying to pair with same device ID (self-pairing prevention)
+        self_pair_res = client.post("/api/emergency/contacts/pair", json={
+            "device_id": phone_a_device,
+            "pairing_code": pairing_code
+        })
+        assert self_pair_res.status_code == 400
+        assert "Cannot pair with your own device" in self_pair_res.json()["detail"]

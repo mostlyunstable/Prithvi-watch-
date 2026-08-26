@@ -28,9 +28,14 @@ import { SOSEvent } from '../types/emergency';
 import { emergencyApi } from '../services/api';
 import { getOrCreateDeviceId, getUserName, getDemoMode, setDemoMode } from '../services/storage';
 
+import { ScreenHeader } from '../components/ScreenHeader';
+
 const HOLD_DURATION_MS = 3000; // 3 seconds press and hold
 
-export const SOSScreen: React.FC<{ onNavigateToAlerts?: () => void }> = ({ onNavigateToAlerts }) => {
+export const SOSScreen: React.FC<{ onNavigateToAlerts?: () => void; onBack?: () => void }> = ({
+  onNavigateToAlerts,
+  onBack,
+}) => {
   const [deviceId, setDeviceId] = useState<string>('');
   const [userName, setUserName] = useState<string>('Prithvi Watch Responder');
   const [isDemo, setIsDemo] = useState<boolean>(true);
@@ -88,20 +93,20 @@ export const SOSScreen: React.FC<{ onNavigateToAlerts?: () => void }> = ({ onNav
     setFetchingGps(true);
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status === 'granted') {
-        const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
-        setCurrentCoords({
-          lat: roundCoordinate(loc.coords.latitude),
-          lon: roundCoordinate(loc.coords.longitude),
-          acc: loc.coords.accuracy ? Math.round(loc.coords.accuracy) : undefined
-        });
-      } else {
-        // Fallback to regional coordinates for simulator demo
-        setCurrentCoords({ lat: 26.1800, lon: 91.7500, acc: 10 });
+      if (status !== 'granted') {
+        // Permission denied — do NOT fabricate coordinates
+        setCurrentCoords(null);
+        return;
       }
+      const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+      setCurrentCoords({
+        lat: roundCoordinate(loc.coords.latitude),
+        lon: roundCoordinate(loc.coords.longitude),
+        acc: loc.coords.accuracy ? Math.round(loc.coords.accuracy) : undefined,
+      });
     } catch {
-      // Fallback
-      setCurrentCoords({ lat: 26.1800, lon: 91.7500, acc: 15 });
+      // GPS unavailable — do NOT fabricate coordinates
+      setCurrentCoords(null);
     } finally {
       setFetchingGps(false);
     }
@@ -145,36 +150,49 @@ export const SOSScreen: React.FC<{ onNavigateToAlerts?: () => void }> = ({ onNav
     Alert.alert(
       isDemo ? '🚨 DEMO SOS CONFIRMATION' : '🚨 EMERGENCY SOS CONFIRMATION',
       isDemo
-        ? `Broadcast simulated DEMO SOS with current GPS coordinates (${currentCoords?.lat || 26.1800}°N, ${currentCoords?.lon || 91.7500}°E)?\n\nSimulated alerts will be dispatched to your registered contacts.`
-        : `Are you sure you want to broadcast a real emergency SOS from (${currentCoords?.lat}°N, ${currentCoords?.lon}°E)?`,
+        ? `Broadcast simulated DEMO SOS with confirmed GPS coordinates (${currentCoords?.lat ?? 0}°N, ${currentCoords?.lon ?? 0}°E)?\n\nSimulated alerts will be dispatched to your registered contacts.`
+        : `Are you sure you want to broadcast a real emergency SOS from (${currentCoords?.lat ?? 0}°N, ${currentCoords?.lon ?? 0}°E)?`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
           text: isDemo ? 'Broadcast Demo SOS' : 'Confirm SOS',
           style: 'destructive',
-          onPress: executeSOSBroadcast
-        }
+          onPress: () => executeSOSBroadcast(false),
+        },
       ]
     );
   };
 
-  const executeSOSBroadcast = async () => {
+  const executeSOSBroadcast = async (forceNoGps = false) => {
+    if (!currentCoords && !forceNoGps) {
+      Alert.alert(
+        'LOCATION UNAVAILABLE',
+        'Your emergency signal can still be sent, but your location could not be attached.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Send Anyway', style: 'destructive', onPress: () => executeSOSBroadcast(true) }
+        ]
+      );
+      return;
+    }
+    
+    const lat = currentCoords ? currentCoords?.lat ?? 0 : 0.0;
+    const lon = currentCoords ? currentCoords?.lon ?? 0 : 0.0;
+    const acc = currentCoords ? (currentCoords.acc ?? 50.0) : 0.0;
+    
     setTriggering(true);
     try {
-      const lat = currentCoords?.lat || 26.1800;
-      const lon = currentCoords?.lon || 91.7500;
-
       const event = await emergencyApi.triggerSOS({
         device_id: deviceId,
         latitude: lat,
         longitude: lon,
         altitude_m: 55.0,
-        accuracy_m: currentCoords?.acc || 10.0,
+        accuracy_m: acc,
         battery_pct: 85,
         sender_name: userName,
         trigger_type: 'PRESS_AND_HOLD_3S',
         mode: isDemo ? 'DEMO' : 'LIVE',
-        user_note: isDemo ? 'Judge demonstration alert simulation.' : 'Emergency distress signal.'
+        user_note: isDemo ? 'Judge demonstration alert simulation.' : 'Emergency distress signal.',
       });
 
       setActiveSOSEvent(event);
@@ -187,13 +205,25 @@ export const SOSScreen: React.FC<{ onNavigateToAlerts?: () => void }> = ({ onNav
       } else {
         Alert.alert(
           '🚨 SOS Broadcasted',
-          `Event ID: ${event.id}\nSimulated notifications dispatched to ${event.notified_contacts_count} registered contacts.`
+          `Event ID: ${event.id}\n${event.is_duplicate_suppressed ? 'Duplicate suppressed.' : `Notifications dispatched to ${event.notified_contacts_count} contact(s).`}`
         );
       }
     } catch (e: any) {
       Alert.alert('SOS Broadcast Failed', e.message || 'Server error occurred.');
     } finally {
       setTriggering(false);
+    }
+  };
+
+  
+  const handleRetrySOS = async () => {
+    if (!activeSOSEvent) return;
+    try {
+      const updated = await emergencyApi.retrySOS(activeSOSEvent.id);
+      setActiveSOSEvent(updated);
+      Alert.alert('Retry Dispatch', 'Failed alerts have been re-queued.');
+    } catch (e: any) {
+      Alert.alert('Retry Error', e.message);
     }
   };
 
@@ -228,138 +258,185 @@ export const SOSScreen: React.FC<{ onNavigateToAlerts?: () => void }> = ({ onNav
   });
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
-      {/* Demo Mode Notice Banner */}
-      <View style={styles.demoBanner}>
-        <View style={styles.demoBannerLeft}>
-          <ShieldAlert size={16} color="#f59e0b" />
-          <View>
-            <Text style={styles.demoBannerTitle}>DEMO SIMULATION MODE ACTIVE</Text>
-            <Text style={styles.demoBannerText}>
-              Simulates real-time SOS broadcast and contact notifications without carrier network transmission.
-            </Text>
-          </View>
-        </View>
-      </View>
-
-      {/* GPS Location Pill */}
-      <View style={styles.gpsPill}>
-        <MapPin size={14} color="#38bdf8" />
-        {fetchingGps ? (
-          <Text style={styles.gpsText}>Acquiring GPS coordinates...</Text>
-        ) : (
-          <Text style={styles.gpsText}>
-            GPS: {currentCoords ? `${currentCoords.lat.toFixed(4)}°N, ${currentCoords.lon.toFixed(4)}°E (±${currentCoords.acc || 10}m)` : 'Unavailable'}
-          </Text>
-        )}
-        <TouchableOpacity onPress={fetchLocation} style={styles.refreshGpsBtn}>
-          <Text style={styles.refreshGpsText}>Refresh</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Active SOS State Card */}
-      {activeSOSEvent && activeSOSEvent.status === 'ACTIVE' && (
-        <View style={styles.activeSOSCard}>
-          <View style={styles.activeSOSHeader}>
-            <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
-              <Radio size={20} color="#ef4444" />
-            </Animated.View>
-            <Text style={styles.activeSOSTitle}>EMERGENCY SOS ACTIVE</Text>
-          </View>
-
-          <View style={styles.sosDetailsGrid}>
-            <View style={styles.sosDetailItem}>
-              <Text style={styles.sosDetailLabel}>Event ID</Text>
-              <Text style={styles.sosDetailValue}>{activeSOSEvent.id}</Text>
-            </View>
-            <View style={styles.sosDetailItem}>
-              <Text style={styles.sosDetailLabel}>Contacts Notified</Text>
-              <Text style={styles.sosDetailValue}>{activeSOSEvent.notified_contacts_count}</Text>
-            </View>
-            <View style={styles.sosDetailItem}>
-              <Text style={styles.sosDetailLabel}>Mode</Text>
-              <Text style={styles.sosDetailValue}>{activeSOSEvent.mode}</Text>
-            </View>
-            <View style={styles.sosDetailItem}>
-              <Text style={styles.sosDetailLabel}>Timestamp</Text>
-              <Text style={styles.sosDetailValue}>
-                {new Date(activeSOSEvent.created_at).toLocaleTimeString()}
+    <View style={{ flex: 1 }}>
+      {onBack && <ScreenHeader title="Emergency SOS" onBack={onBack} />}
+      <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
+                {/* Mode Notice Banner */}
+        <View style={[styles.demoBanner, { backgroundColor: (!isDemo) ? '#fef2f2' : '#fdfbeb', borderColor: (!isDemo) ? '#f87171' : '#fcd34d' }]}>
+          <View style={styles.demoBannerLeft}>
+            <ShieldAlert size={16} color={(!isDemo) ? '#ef4444' : '#f59e0b'} />
+            <View>
+              <Text style={[styles.demoBannerTitle, { color: (!isDemo) ? '#b91c1c' : '#92400e' }]}>
+                {(!isDemo) ? 'REAL EMERGENCY DELIVERY ACTIVE' : 'DEMO SIMULATION MODE ACTIVE'}
+              </Text>
+              <Text style={styles.demoBannerText}>
+                {(!isDemo) ? 'WARNING: Triggering SOS will send REAL SMS messages to your emergency contacts.' : 'Simulates real-time SOS broadcast and contact notifications without real SMS transmission.'}
               </Text>
             </View>
           </View>
-
-          <TouchableOpacity style={styles.cancelSOSBtn} onPress={handleCancelSOS}>
-            <XCircle size={16} color="#fff" />
-            <Text style={styles.cancelSOSText}>Cancel Emergency SOS</Text>
-          </TouchableOpacity>
-        </View>
-      )}
-
-      {/* Primary SOS Button Section */}
-      <View style={styles.buttonContainer}>
-        <View style={styles.sosOuterRing}>
-          {/* Progress fill bar underneath */}
-          {isHolding && (
-            <Animated.View
-              style={[
-                styles.progressBar,
-                {
-                  width: progressInterpolation
-                }
-              ]}
-            />
-          )}
-
-          <TouchableOpacity
-            activeOpacity={0.8}
-            onPressIn={handlePressIn}
-            onPressOut={handlePressOut}
-            disabled={triggering || (activeSOSEvent?.status === 'ACTIVE')}
-            style={[
-              styles.sosCircle,
-              activeSOSEvent?.status === 'ACTIVE' && styles.sosCircleActive,
-              isHolding && styles.sosCircleHolding
-            ]}
+          <TouchableOpacity 
+            style={{ padding: 6, backgroundColor: '#fff', borderRadius: 4, borderWidth: 1, borderColor: '#e2e8f0' }}
+            onPress={() => setIsDemo(!isDemo)}
           >
-            {triggering ? (
-              <ActivityIndicator size="large" color="#fff" />
-            ) : activeSOSEvent?.status === 'ACTIVE' ? (
-              <View style={styles.sosButtonContent}>
-                <Radio size={40} color="#fff" />
-                <Text style={styles.sosButtonText}>ACTIVE</Text>
-                <Text style={styles.sosButtonSub}>BROADCASTING</Text>
-              </View>
-            ) : (
-              <View style={styles.sosButtonContent}>
-                <AlertTriangle size={42} color="#fff" />
-                <Text style={styles.sosButtonText}>SOS</Text>
-                <Text style={styles.sosButtonSub}>HOLD 3 SECONDS</Text>
-              </View>
-            )}
+            <Text style={{ fontSize: 10, fontWeight: 'bold', color: '#334155' }}>SWITCH</Text>
           </TouchableOpacity>
         </View>
 
-        <Text style={styles.instructionText}>
-          {isHolding
-            ? 'Keep holding to broadcast SOS...'
-            : activeSOSEvent?.status === 'ACTIVE'
-            ? 'Distress signal is actively broadcasting.'
-            : 'Press and hold the SOS button for 3 seconds to trigger emergency assistance.'}
-        </Text>
-      </View>
-
-      {/* Safety Instructions card */}
-      <View style={styles.infoCard}>
-        <View style={styles.infoCardHeader}>
-          <Info size={16} color="#60a5fa" />
-          <Text style={styles.infoCardTitle}>Emergency Protocol</Text>
+        {/* GPS Location Pill */}
+        <View style={styles.gpsPill}>
+          <MapPin size={14} color={currentCoords ? '#38bdf8' : '#f87171'} />
+          {fetchingGps ? (
+            <Text style={styles.gpsText}>Acquiring GPS coordinates...</Text>
+          ) : currentCoords ? (
+            <Text style={styles.gpsText}>
+              GPS: {(currentCoords?.lat ?? 0).toFixed(4)}°N, {(currentCoords?.lon ?? 0).toFixed(4)}°E (±{currentCoords.acc ?? '?'}m)
+            </Text>
+          ) : (
+            <Text style={[styles.gpsText, { color: '#f87171' }]}>
+              GPS UNAVAILABLE — Location permission denied or GPS inactive. SOS blocked.
+            </Text>
+          )}
+          <TouchableOpacity onPress={fetchLocation} style={styles.refreshGpsBtn}>
+            <Text style={styles.refreshGpsText}>Refresh</Text>
+          </TouchableOpacity>
         </View>
-        <Text style={styles.infoBullet}>• 3-second hold prevents accidental pocket activations.</Text>
-        <Text style={styles.infoBullet}>• Captures high-precision GPS coordinates & battery telemetry.</Text>
-        <Text style={styles.infoBullet}>• Dispatches instant alert receipts to registered contacts.</Text>
-        <Text style={styles.infoBullet}>• Includes duplicate suppression to avoid spamming responders.</Text>
-      </View>
-    </ScrollView>
+
+        {/* Active SOS State Card */}
+        {activeSOSEvent && activeSOSEvent.status === 'ACTIVE' && (
+          <View style={styles.activeSOSCard}>
+            <View style={styles.activeSOSHeader}>
+              <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
+                <Radio size={20} color="#ef4444" />
+              </Animated.View>
+              <Text style={styles.activeSOSTitle}>EMERGENCY SOS ACTIVE</Text>
+            </View>
+
+            <View style={styles.sosDetailsGrid}>
+              <View style={styles.sosDetailItem}>
+                <Text style={styles.sosDetailLabel}>Event ID</Text>
+                <Text style={styles.sosDetailValue}>{activeSOSEvent.id}</Text>
+              </View>
+              <View style={styles.sosDetailItem}>
+                <Text style={styles.sosDetailLabel}>Contacts Notified</Text>
+                <Text style={styles.sosDetailValue}>{activeSOSEvent.notified_contacts_count}</Text>
+              </View>
+              <View style={styles.sosDetailItem}>
+                <Text style={styles.sosDetailLabel}>Mode</Text>
+                <Text style={styles.sosDetailValue}>{activeSOSEvent.mode}</Text>
+              </View>
+              <View style={styles.sosDetailItem}>
+                <Text style={styles.sosDetailLabel}>Timestamp</Text>
+                <Text style={styles.sosDetailValue}>
+                  {new Date(activeSOSEvent.created_at).toLocaleTimeString()}
+                </Text>
+              </View>
+            </View>
+
+            <View style={{ marginTop: 12, backgroundColor: '#fee2e2', borderRadius: 8, padding: 8, marginBottom: 12 }}>
+              <Text style={{ fontSize: 11, fontWeight: '700', color: '#991b1b', marginBottom: 6 }}>ALERTS</Text>
+              {activeSOSEvent.notification_receipts && activeSOSEvent.notification_receipts.length > 0 ? (
+                activeSOSEvent.notification_receipts.map((rcpt: any, idx: number) => {
+                  let icon = '⟳';
+                  let color = '#d97706';
+                  if (rcpt.status === 'provider_accepted' || rcpt.status === 'SENT' || rcpt.status === 'DELIVERED') {
+                    icon = '✓';
+                    color = '#15803d';
+                  } else if (rcpt.status === 'FAILED') {
+                    icon = '✕';
+                    color = '#dc2626';
+                  }
+                  return (
+                    <View key={idx} style={{ flexDirection: 'row', alignItems: 'center', marginVertical: 2 }}>
+                      <Text style={{ color: color, width: 20, fontWeight: 'bold' }}>{icon}</Text>
+                      <Text style={{ fontSize: 11, color: '#450a0a', flex: 1 }} numberOfLines={1}>
+                        {rcpt.recipient_name || 'Contact'} — {rcpt.status.replace('_', ' ')}
+                      </Text>
+                    </View>
+                  );
+                })
+              ) : (
+                <Text style={{ fontSize: 11, color: '#7f1d1d', fontStyle: 'italic' }}>No alerts dispatched.</Text>
+              )}
+            </View>
+
+            {activeSOSEvent.notification_receipts?.some((r: any) => r.status === 'FAILED') && (
+              <TouchableOpacity style={{ backgroundColor: '#f59e0b', padding: 12, borderRadius: 8, alignItems: 'center', marginBottom: 12 }} onPress={handleRetrySOS}>
+                <Text style={{ color: '#fff', fontWeight: 'bold' }}>[ RETRY FAILED ALERTS ]</Text>
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity style={styles.cancelSOSBtn} onPress={handleCancelSOS}>
+              <XCircle size={16} color="#fff" />
+              <Text style={styles.cancelSOSText}>Cancel Emergency SOS</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Primary SOS Button Section */}
+        <View style={styles.buttonContainer}>
+          <View style={styles.sosOuterRing}>
+            {/* Progress fill bar underneath */}
+            {isHolding && (
+              <Animated.View
+                style={[
+                  styles.progressBar,
+                  {
+                    width: progressInterpolation
+                  }
+                ]}
+              />
+            )}
+
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPressIn={handlePressIn}
+              onPressOut={handlePressOut}
+              disabled={triggering || (activeSOSEvent?.status === 'ACTIVE')}
+              style={[
+                styles.sosCircle,
+                activeSOSEvent?.status === 'ACTIVE' && styles.sosCircleActive,
+                isHolding && styles.sosCircleHolding
+              ]}
+            >
+              {triggering ? (
+                <ActivityIndicator size="large" color="#fff" />
+              ) : activeSOSEvent?.status === 'ACTIVE' ? (
+                <View style={styles.sosButtonContent}>
+                  <Radio size={40} color="#fff" />
+                  <Text style={styles.sosButtonText}>ACTIVE</Text>
+                  <Text style={styles.sosButtonSub}>BROADCASTING</Text>
+                </View>
+              ) : (
+                <View style={styles.sosButtonContent}>
+                  <AlertTriangle size={42} color="#fff" />
+                  <Text style={styles.sosButtonText}>SOS</Text>
+                  <Text style={styles.sosButtonSub}>HOLD 3 SECONDS</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          </View>
+
+          <Text style={styles.instructionText}>
+            {isHolding
+              ? 'Keep holding to broadcast SOS...'
+              : activeSOSEvent?.status === 'ACTIVE'
+              ? 'Distress signal is actively broadcasting.'
+              : 'Press and hold the SOS button for 3 seconds to trigger emergency assistance.'}
+          </Text>
+        </View>
+
+        {/* Safety Instructions card */}
+        <View style={styles.infoCard}>
+          <View style={styles.infoCardHeader}>
+            <Info size={16} color="#60a5fa" />
+            <Text style={styles.infoCardTitle}>Emergency Protocol</Text>
+          </View>
+          <Text style={styles.infoBullet}>• 3-second hold prevents accidental pocket activations.</Text>
+          <Text style={styles.infoBullet}>• Captures high-precision GPS coordinates & battery telemetry.</Text>
+          <Text style={styles.infoBullet}>• Dispatches instant alert receipts to registered contacts.</Text>
+          <Text style={styles.infoBullet}>• Includes duplicate suppression to avoid spamming responders.</Text>
+        </View>
+      </ScrollView>
+    </View>
   );
 };
 

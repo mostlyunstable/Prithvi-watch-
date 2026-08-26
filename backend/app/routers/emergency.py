@@ -11,6 +11,7 @@ Exposes REST endpoints for:
 
 from typing import List, Optional
 from fastapi import APIRouter, HTTPException, Query, status
+from pydantic import BaseModel, Field
 
 from app.services.emergency import (
     emergency_service,
@@ -72,6 +73,66 @@ def delete_contact(
             detail=f"Contact '{contact_id}' not found."
         )
     return {"status": "success", "message": f"Contact '{contact_id}' deleted."}
+
+
+
+@router.post("/contacts/{contact_id}/test")
+def test_contact_alert(contact_id: str, device_id: str = Query(..., description="Device ID ownership check")):
+    """Send a test alert connectivity check to a registered contact without an active SOS event."""
+    contacts = emergency_service.get_contacts(device_id=device_id, mask=False)
+    contact = next((c for c in contacts if c["id"] == contact_id), None)
+    
+    if not contact:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Contact '{contact_id}' not found for device."
+        )
+        
+    from app.services.notifications import sms_notification_provider
+    
+    receipt = sms_notification_provider.dispatch_alert(
+        event_id="TEST-" + contact_id,
+        sender_name="Prithvi Watch User",
+        latitude=0.0,
+        longitude=0.0,
+        recipient_phone=contact["phone_number"],
+        recipient_name=contact["name"],
+        is_demo=True  # Force demo format for test alerts
+    )
+    
+    return {
+        "status": "success",
+        "message": "Test alert dispatched.",
+        "receipt": receipt
+    }
+
+class ContactPairRequest(BaseModel):
+    device_id: str = Field(..., min_length=3, max_length=64)
+    pairing_code: str = Field(..., min_length=6, max_length=12)
+
+
+@router.post("/contacts/pair")
+def pair_contact(payload: ContactPairRequest):
+    """
+    Pair a responder's device ID with an existing contact using a pairing code.
+    Sets is_verified = True and links the device.
+    """
+    try:
+        updated = emergency_service.pair_contact(
+            responder_device_id=payload.device_id,
+            pairing_code=payload.pairing_code
+        )
+        if not updated:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Invalid pairing code. Contact not found."
+            )
+        return updated
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
 
 
 # ============================================================================
@@ -138,6 +199,17 @@ def get_sos_status(event_id: str):
         )
     return event
 
+
+
+@router.post("/sos/{event_id}/retry")
+def retry_failed_alerts(event_id: str):
+    updated = emergency_service.retry_failed_alerts(event_id)
+    if not updated:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Event {event_id} not found."
+        )
+    return updated
 
 @router.post("/sos/{event_id}/cancel")
 def cancel_sos(

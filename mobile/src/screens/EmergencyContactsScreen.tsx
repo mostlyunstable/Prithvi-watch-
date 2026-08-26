@@ -10,7 +10,11 @@ import {
   Alert,
   ActivityIndicator,
   Switch,
-  ScrollView
+  ScrollView,
+  KeyboardAvoidingView,
+  TouchableWithoutFeedback,
+  Keyboard,
+  Platform
 } from 'react-native';
 import { UserPlus, Phone, ShieldCheck, Trash2, Edit3, Lock, Users, AlertCircle, BellRing, Smartphone } from 'lucide-react-native';
 import { theme } from '../theme/theme';
@@ -18,22 +22,19 @@ import { EmergencyContact, RelationshipType } from '../types/emergency';
 import { emergencyApi } from '../services/api';
 import { getOrCreateDeviceId } from '../services/storage';
 import { registerForPushNotificationsAsync } from '../services/notifications';
+import { ScreenHeader } from '../components/ScreenHeader';
 
-const RELATIONSHIPS: RelationshipType[] = [
+const RELATIONSHIPS: (RelationshipType | string)[] = [
   'Family',
-  'Parent',
-  'Spouse',
-  'Sibling',
-  'Child',
   'Friend',
-  'Doctor',
+  'Medical',
   'Local Authority',
   'Neighbor',
   'Colleague',
   'Other'
 ];
 
-export const EmergencyContactsScreen: React.FC = () => {
+export const EmergencyContactsScreen: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
   const [contacts, setContacts] = useState<EmergencyContact[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [deviceId, setDeviceId] = useState<string>('');
@@ -41,6 +42,8 @@ export const EmergencyContactsScreen: React.FC = () => {
   const [pushToken, setPushToken] = useState<string | null>(null);
   const [registeringPush, setRegisteringPush] = useState<boolean>(false);
   const [responderPhone, setResponderPhone] = useState<string>('');
+  const [pairingCodeInput, setPairingCodeInput] = useState<string>('');
+  const [pairingLoading, setPairingLoading] = useState<boolean>(false);
 
   // Modal State
   const [modalVisible, setModalVisible] = useState<boolean>(false);
@@ -96,6 +99,28 @@ export const EmergencyContactsScreen: React.FC = () => {
       Alert.alert('Registration Error', e.message || 'Could not register push token.');
     } finally {
       setRegisteringPush(false);
+    }
+  };
+
+  const handleVerifyPairingCode = async () => {
+    if (!pairingCodeInput.trim()) {
+      Alert.alert('Verification Code Required', 'Please enter a 6-character pairing code.');
+      return;
+    }
+    setPairingLoading(true);
+    try {
+      const devId = await getOrCreateDeviceId();
+      await emergencyApi.pairContact(devId, pairingCodeInput.trim().toUpperCase());
+      setPairingCodeInput('');
+      Alert.alert(
+        'Pairing Successful',
+        'You have successfully paired this device as an emergency contact responder.'
+      );
+      await init();
+    } catch (e: any) {
+      Alert.alert('Pairing Error', e.message || 'Failed to verify pairing code.');
+    } finally {
+      setPairingLoading(false);
     }
   };
 
@@ -168,6 +193,32 @@ export const EmergencyContactsScreen: React.FC = () => {
     }
   };
 
+  
+  const handleTestAlert = async (contactId: string) => {
+    try {
+      Alert.alert(
+        'Test Alert',
+        'Send a test connectivity SMS to this contact? No emergency event will be created.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Send Test SMS',
+            onPress: async () => {
+              try {
+                await emergencyApi.testEmergencyContact(contactId, deviceId);
+                Alert.alert('Success', 'Test SMS request dispatched to provider.');
+              } catch (e: any) {
+                Alert.alert('Error', e.message);
+              }
+            }
+          }
+        ]
+      );
+    } catch (e: any) {
+      Alert.alert('Error', e.message);
+    }
+  };
+
   const handleDeleteContact = (contactId: string, contactName: string) => {
     Alert.alert(
       'Delete Emergency Contact',
@@ -221,26 +272,48 @@ export const EmergencyContactsScreen: React.FC = () => {
           <Text style={styles.relationshipText}>{item.relationship}</Text>
         </View>
         <View style={styles.verifiedBadge}>
-          <ShieldCheck size={13} color="#22c55e" />
-          <Text style={styles.verifiedText}>REGISTERED & VERIFIED</Text>
+          {item.is_verified ? (
+            <Text style={[styles.verifiedText, { color: '#22c55e' }]}>STATUS: VERIFIED</Text>
+          ) : (
+            <Text style={[styles.verifiedText, { color: '#f59e0b' }]}>STATUS: REGISTERED (NOT VERIFIED)</Text>
+          )}
         </View>
       </View>
+      
+      <TouchableOpacity
+        style={{ marginTop: 12, backgroundColor: '#f1f5f9', padding: 8, borderRadius: 6, alignItems: 'center' }}
+        onPress={() => handleTestAlert(item.id)}
+      >
+        <Text style={{ fontSize: 12, color: '#334155', fontWeight: '600' }}>[ SEND TEST ALERT ]</Text>
+      </TouchableOpacity>
+
     </View>
   );
 
   return (
     <View style={styles.container}>
-      {/* Header banner */}
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.headerTitle}>Emergency Contacts</Text>
-          <Text style={styles.headerSubtitle}>Notified automatically when SOS is activated</Text>
+      {onBack ? (
+        <ScreenHeader
+          title="Contacts"
+          onBack={onBack}
+          rightAction={
+            <TouchableOpacity onPress={openAddModal}>
+              <UserPlus size={20} color={theme.colors.text} />
+            </TouchableOpacity>
+          }
+        />
+      ) : (
+        <View style={styles.header}>
+          <View>
+            <Text style={styles.headerTitle}>Emergency Contacts</Text>
+            <Text style={styles.headerSubtitle}>Notified automatically when SOS is activated</Text>
+          </View>
+          <TouchableOpacity style={styles.addBtn} onPress={openAddModal}>
+            <UserPlus size={18} color="#fff" />
+            <Text style={styles.addBtnText}>Add</Text>
+          </TouchableOpacity>
         </View>
-        <TouchableOpacity style={styles.addBtn} onPress={openAddModal}>
-          <UserPlus size={18} color="#fff" />
-          <Text style={styles.addBtnText}>Add</Text>
-        </TouchableOpacity>
-      </View>
+      )}
 
       {/* Responder Push Receiver Status Card */}
       <View style={styles.responderCard}>
@@ -263,6 +336,8 @@ export const EmergencyContactsScreen: React.FC = () => {
                 keyboardType="phone-pad"
                 value={responderPhone}
                 onChangeText={setResponderPhone}
+                returnKeyType="done"
+                onSubmitEditing={Keyboard.dismiss}
               />
             )}
           </View>
@@ -288,6 +363,57 @@ export const EmergencyContactsScreen: React.FC = () => {
           </TouchableOpacity>
         )}
       </View>
+
+      {/* Pairing Code Verification Form (Phone B responder) */}
+      {pushToken && (
+        <View style={[styles.responderCard, { marginTop: 12, backgroundColor: '#0f172a', borderColor: '#1e293b' }]}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.responderCardTitle}>LINK EMERGENCY CONTACT</Text>
+            <Text style={styles.responderCardSub}>
+              Enter the pairing code shown on your friend's device to link this installation.
+            </Text>
+            <View style={{ flexDirection: 'row', marginTop: 10, gap: 8 }}>
+              <TextInput
+                style={{
+                  backgroundColor: '#1e293b',
+                  color: '#fff',
+                  paddingHorizontal: 12,
+                  paddingVertical: 8,
+                  borderRadius: 6,
+                  fontSize: 14,
+                  borderWidth: 1,
+                  borderColor: '#334155',
+                  flex: 2,
+                  textTransform: 'uppercase'
+                }}
+                placeholder="e.g. 1A2B3C"
+                placeholderTextColor="#64748b"
+                value={pairingCodeInput}
+                onChangeText={setPairingCodeInput}
+                autoCapitalize="characters"
+              />
+              <TouchableOpacity
+                style={{
+                  backgroundColor: '#2563eb',
+                  borderRadius: 6,
+                  paddingHorizontal: 16,
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  flex: 1
+                }}
+                onPress={handleVerifyPairingCode}
+                disabled={pairingLoading}
+              >
+                {pairingLoading ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 13 }}>Verify</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      )}
 
       {/* Privacy masking toggle */}
       <View style={styles.privacyRow}>
@@ -332,8 +458,13 @@ export const EmergencyContactsScreen: React.FC = () => {
 
       {/* Add / Edit Contact Modal */}
       <Modal visible={modalVisible} animationType="slide" transparent>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+          <KeyboardAvoidingView 
+            style={styles.modalOverlay} 
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          >
+            <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+              <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>
               {editingContact ? 'Edit Emergency Contact' : 'Register Emergency Contact'}
             </Text>
@@ -352,6 +483,8 @@ export const EmergencyContactsScreen: React.FC = () => {
               placeholderTextColor="#64748b"
               value={name}
               onChangeText={setName}
+              returnKeyType="done"
+              onSubmitEditing={Keyboard.dismiss}
             />
 
             <Text style={styles.inputLabel}>Phone Number (Indian 10-digit or +E.164)</Text>
@@ -362,6 +495,8 @@ export const EmergencyContactsScreen: React.FC = () => {
               keyboardType="phone-pad"
               value={phone}
               onChangeText={setPhone}
+              returnKeyType="done"
+              onSubmitEditing={Keyboard.dismiss}
             />
 
             <Text style={styles.inputLabel}>Relationship</Text>
@@ -410,8 +545,10 @@ export const EmergencyContactsScreen: React.FC = () => {
                 )}
               </TouchableOpacity>
             </View>
-          </View>
-        </View>
+              </View>
+            </TouchableWithoutFeedback>
+          </KeyboardAvoidingView>
+        </TouchableWithoutFeedback>
       </Modal>
     </View>
   );

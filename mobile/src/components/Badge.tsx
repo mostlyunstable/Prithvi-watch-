@@ -3,7 +3,7 @@ import { View, StyleSheet, ViewProps } from 'react-native';
 import { Typography } from './Typography';
 import { theme } from '../theme/theme';
 
-type BadgeVariant = 'success' | 'warning' | 'danger' | 'info' | 'default';
+type BadgeVariant = 'success' | 'warning' | 'danger' | 'error' | 'info' | 'default' | 'neutral';
 
 interface BadgeProps extends ViewProps {
   label: string;
@@ -15,13 +15,15 @@ export const Badge: React.FC<BadgeProps> = ({ label, variant = 'default', style,
     switch (variant) {
       case 'success': return { bg: 'rgba(34, 197, 94, 0.2)', text: theme.colors.success };
       case 'warning': return { bg: 'rgba(234, 179, 8, 0.2)', text: theme.colors.warning };
-      case 'danger': return { bg: 'rgba(239, 68, 68, 0.2)', text: theme.colors.danger };
+      case 'danger':
+      case 'error': return { bg: 'rgba(239, 68, 68, 0.2)', text: theme.colors.danger };
       case 'info': return { bg: 'rgba(59, 130, 246, 0.2)', text: theme.colors.primary };
+      case 'neutral':
       case 'default': return { bg: theme.colors.surfaceHighlight, text: theme.colors.textSecondary };
     }
   };
 
-  const colors = getColors();
+  const colors = getColors()!;
 
   return (
     <View style={[styles.container, { backgroundColor: colors.bg }, style]} {...props}>
